@@ -1,0 +1,15 @@
+:root {
+  --color-primary: #2563eb;
+  --color-primary-dark: #1d4ed8;
+  --color-secondary: #64748b;
+  --color-error: #dc2626;
+  --color-success: #16a34a;
+  --color-warning: #ea8900;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-primary: #3b82f6;
+    --color-secondary: #94a3b8;
+  }
+}
