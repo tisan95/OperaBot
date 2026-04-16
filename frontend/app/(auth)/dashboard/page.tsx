@@ -27,19 +27,19 @@ export default function DashboardPage() {
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition">
+          <Link href="/faq" className="block p-4 border border-gray-200 rounded-lg hover:shadow-md transition bg-white">
             <h3 className="font-semibold text-gray-900 mb-2">📚 Browse FAQ</h3>
             <p className="text-sm text-gray-600">
               Explore operational knowledge and FAQs
             </p>
-          </div>
+          </Link>
 
-          <div className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition">
+          <Link href="/chat" className="block p-4 border border-gray-200 rounded-lg hover:shadow-md transition bg-white">
             <h3 className="font-semibold text-gray-900 mb-2">💬 Chat with AI</h3>
             <p className="text-sm text-gray-600">
               Ask operational questions and get answers
             </p>
-          </div>
+          </Link>
 
           {user?.role === "admin" && (
             <>
@@ -62,12 +62,15 @@ export default function DashboardPage() {
       </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="font-semibold text-blue-900 mb-2">ℹ️ Next Steps</h3>
+        <h3 className="font-semibold text-blue-900 mb-2">ℹ️ What's New</h3>
         <p className="text-blue-800 text-sm">
-          FEATURE-001 (User Authentication & Login) is now complete! 🎉
+          ✅ User Authentication & Login
         </p>
-        <p className="text-blue-800 text-sm mt-2">
-          Next feature coming soon: FAQ Browser, Chat Interface, and Admin Panel
+        <p className="text-blue-800 text-sm">
+          ✅ FAQ Browser & Management
+        </p>
+        <p className="text-blue-800 text-sm">
+          ✅ Chat with AI (Beta) - Now Available!
         </p>
       </div>
     </div>

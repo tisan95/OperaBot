@@ -2,6 +2,7 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from app.models.user import User
 from typing import Optional
 from uuid import UUID
@@ -25,9 +26,11 @@ class UserRepository:
             user_id: User UUID
 
         Returns:
-            User object or None
+            User object or None (with company relationship eagerly loaded)
         """
-        result = await self.db.execute(select(User).where(User.id == user_id))
+        result = await self.db.execute(
+            select(User).where(User.id == user_id).options(joinedload(User.company))
+        )
         return result.scalars().first()
 
     async def get_by_email(self, company_id: UUID, email: str) -> Optional[User]:

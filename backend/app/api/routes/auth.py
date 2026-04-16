@@ -102,7 +102,7 @@ async def login(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Login failed",
+            detail=f"Failed to get user: {e}",
         )
 
 
@@ -162,10 +162,14 @@ async def get_current_user(
             },
         }
 
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 404)
+        raise
     except Exception as e:
+        # Include real error message for debugging
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to get user",
+            detail=f"Failed to get user: {str(e)}",
         )
 
 

@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8000"
 
+    # LLM (new)
+    LLM_PROVIDER: str | None = None
+    LLM_API_KEY: str | None = None
+    LLM_MODEL: str | None = None
+
     class Config:
         env_file = ".env"
         case_sensitive = True

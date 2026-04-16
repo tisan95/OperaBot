@@ -13,6 +13,14 @@ export interface Company {
   created_at?: string;
 }
 
+export interface FAQ {
+  id: number;
+  question: string;
+  answer: string;
+  category?: string | null;
+  created_at: string;
+}
+
 export interface AuthContextType {
   user: User | null;
   company: Company | null;
@@ -36,4 +44,22 @@ export interface ApiResponse<T> {
   company?: Company;
   access_token?: string;
   refresh_token?: string;
+}
+
+export interface Message {
+  id: string;
+  user_message: string;
+  bot_message: string;
+  created_at: string;
+}
+
+export interface ChatMessageRequest {
+  message: string;
+}
+
+export interface ChatMessageResponse {
+  id: string;
+  user_message: string;
+  bot_message: string;
+  created_at: string;
 }
