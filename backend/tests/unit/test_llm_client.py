@@ -10,6 +10,7 @@ class FakeResponse:
         self.status_code = status_code
         self._json_data = json_data
         self.text = str(json_data)
+        self.headers = {}  # Add headers attribute required by httpx
 
     def json(self):
         return self._json_data

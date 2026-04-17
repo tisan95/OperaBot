@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import custom animations */
+@import './animations.css';
+
 * {
   margin: 0;
   padding: 0;
@@ -18,9 +21,223 @@ body {
     "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-secondary-lighter);
+  color: var(--color-text-primary);
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
     monospace;
 }
+
+/* Typography System */
+@layer base {
+  h1 {
+    @apply text-4xl font-bold tracking-tight;
+    color: var(--color-text-primary);
+  }
+  h2 {
+    @apply text-3xl font-bold tracking-tight;
+    color: var(--color-text-primary);
+  }
+  h3 {
+    @apply text-2xl font-semibold tracking-tight;
+    color: var(--color-text-primary);
+  }
+  h4 {
+    @apply text-xl font-semibold tracking-tight;
+    color: var(--color-text-primary);
+  }
+  h5 {
+    @apply text-lg font-semibold;
+    color: var(--color-text-primary);
+  }
+  h6 {
+    @apply text-base font-semibold;
+    color: var(--color-text-primary);
+  }
+
+  p {
+    @apply text-base leading-relaxed;
+    color: var(--color-text-secondary);
+  }
+
+  a {
+    @apply transition-colors;
+    color: var(--color-primary);
+  }
+
+  a:hover {
+    color: var(--color-primary-dark);
+  }
+}
+
+/* Component Classes */
+@layer components {
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2.5 rounded-lg font-medium transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    outline-color: var(--color-primary);
+  }
+
+  .btn-primary {
+    @apply btn shadow-md hover:shadow-lg;
+    background-color: var(--color-primary);
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background-color: var(--color-primary-dark);
+  }
+
+  .btn-secondary {
+    @apply border;
+    background-color: var(--color-secondary-light);
+    color: var(--color-text-primary);
+    border-color: var(--color-border);
+  }
+
+  .btn-secondary:hover {
+    background-color: #cbd5e1;
+  }
+
+  .btn-ghost {
+    @apply btn;
+    color: var(--color-primary);
+  }
+
+  .btn-ghost:hover {
+    background-color: var(--color-primary-light);
+  }
+
+  .btn-danger {
+    @apply btn shadow-md hover:shadow-lg;
+    background-color: var(--color-error);
+    color: white;
+  }
+
+  .btn-danger:hover {
+    background-color: #dc2626;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-sm;
+  }
+
+  .btn-lg {
+    @apply px-6 py-3 text-lg;
+  }
+
+  /* Form Inputs */
+  .input {
+    @apply w-full px-4 py-2.5 rounded-lg bg-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:border-transparent disabled:cursor-not-allowed;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+  }
+
+  .input::placeholder {
+    color: var(--color-text-tertiary);
+  }
+
+  .input:disabled {
+    background-color: var(--color-secondary-light);
+  }
+
+  .input:focus {
+    border-color: transparent;
+    --tw-ring-color: var(--color-primary);
+  }
+
+  .input-error:focus {
+    --tw-ring-color: var(--color-error);
+  }
+
+  /* Cards */
+  .card {
+    @apply rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200;
+    background-color: white;
+    border: 1px solid var(--color-border);
+  }
+
+  .card-padding {
+    @apply p-6;
+  }
+
+  /* Chat Messages */
+  .chat-bubble {
+    @apply rounded-2xl px-4 py-3 max-w-xs lg:max-w-md break-words shadow-sm;
+  }
+
+  .chat-bubble-user {
+    @apply chat-bubble rounded-br-none;
+    background-color: var(--color-primary);
+    color: white;
+  }
+
+  .chat-bubble-bot {
+    @apply chat-bubble rounded-bl-none;
+    background-color: var(--color-secondary-light);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+  }
+
+  .chat-bubble-fallback {
+    @apply chat-bubble rounded-bl-none border;
+    background-color: rgba(245, 158, 11, 0.1);
+    color: var(--color-warning);
+    border-color: rgba(245, 158, 11, 0.3);
+  }
+
+  /* Loading States */
+  .loading-spinner {
+    @apply inline-block animate-spin;
+  }
+
+  .loading-pulse {
+    @apply animate-pulse;
+  }
+
+  /* Containers */
+  .container-max {
+    @apply max-w-7xl mx-auto;
+  }
+
+  .container-md {
+    @apply max-w-2xl mx-auto;
+  }
+
+  .divider {
+    @apply border-t;
+    border-color: var(--color-border);
+  }
+
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-primary {
+    @apply badge;
+    background-color: var(--color-primary-light);
+    color: var(--color-primary);
+  }
+
+  .badge-success {
+    @apply badge;
+    background-color: #d1fae5;
+    color: var(--color-success);
+  }
+
+  .badge-warning {
+    @apply badge;
+    background-color: #fef3c7;
+    color: var(--color-warning);
+  }
+
+  .badge-error {
+    @apply badge;
+    background-color: #fee2e2;
+    color: var(--color-error);
+  }
+}
+

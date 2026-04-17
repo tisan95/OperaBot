@@ -76,19 +76,19 @@ export default function ChatPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      <header className="border-b bg-white sticky top-0 z-10">
+      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white shadow-sm">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-4">
           <div>
             <Link
               href="/dashboard"
-              className="text-sm text-sky-600 hover:underline"
+              className="text-sm text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
             >
-              ← Back to dashboard
+              ← Back to Dashboard
             </Link>
-            <h1 className="mt-2 text-3xl font-semibold text-slate-900">
-              Chat with OperaBot
+            <h1 className="mt-3 text-3xl font-bold text-slate-900">
+              Chat Assistant
             </h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-slate-600">
               Ask questions about your operational knowledge base
             </p>
           </div>
@@ -99,14 +99,16 @@ export default function ChatPage() {
         {/* Messages container */}
         <div className="flex-1 overflow-y-auto mb-6 space-y-4">
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="text-5xl mb-4">💬</div>
-              <h2 className="text-xl font-semibold text-slate-900 mb-2">
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="w-16 h-16 mb-6 rounded-2xl bg-indigo-100 flex items-center justify-center text-2xl">
+                💬
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-3">
                 Start a conversation
               </h2>
-              <p className="text-slate-600 max-w-sm">
-                Ask OperaBot any questions about your operational knowledge base.
-                I'll search the FAQ and provide helpful answers.
+              <p className="text-slate-600 max-w-sm leading-relaxed">
+                Ask OperaBot questions about your operational knowledge base. 
+                I'll search through your FAQ and provide helpful answers.
               </p>
             </div>
           ) : (
@@ -115,15 +117,15 @@ export default function ChatPage() {
                 <div key={msg.id} className="space-y-3">
                   {/* User message */}
                   <div className="flex justify-end">
-                    <div className="max-w-xs bg-sky-600 text-white rounded-2xl px-4 py-3 text-sm">
-                      <p className="break-words whitespace-pre-wrap">{msg.user_message}</p>
+                    <div className="chat-bubble-user">
+                      <p className="break-words whitespace-pre-wrap text-sm">{msg.user_message}</p>
                     </div>
                   </div>
 
                   {/* Bot message */}
                   {msg.isLoading ? (
                     <div className="flex justify-start">
-                      <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3 text-sm">
+                      <div className="chat-bubble bg-slate-100 border border-slate-200">
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
                           <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
@@ -133,8 +135,8 @@ export default function ChatPage() {
                     </div>
                   ) : (
                     <div className="flex justify-start">
-                      <div className="max-w-xs bg-white border border-slate-200 rounded-2xl px-4 py-3 text-sm text-slate-900">
-                        <p className="break-words whitespace-pre-wrap">{msg.bot_message}</p>
+                      <div className="chat-bubble-bot">
+                        <p className="break-words whitespace-pre-wrap text-sm">{msg.bot_message}</p>
                       </div>
                     </div>
                   )}
@@ -147,26 +149,26 @@ export default function ChatPage() {
 
         {/* Error message */}
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-            {error}
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 font-medium">
+            ⚠️ {error}
           </div>
         )}
 
         {/* Input form */}
-        <form onSubmit={handleSubmit} className="border-t bg-white pt-4">
+        <form onSubmit={handleSubmit} className="border-t border-slate-200 bg-white pt-4 pb-2 rounded-t-lg">
           <div className="flex gap-3">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               disabled={loading}
-              placeholder="Ask a question..."
-              className="flex-1 px-4 py-2 rounded-xl border border-slate-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent text-sm disabled:bg-slate-100 disabled:cursor-not-allowed"
+              placeholder="Ask something..."
+              className="input flex-1"
             />
             <button
               type="submit"
               disabled={loading || !input.trim()}
-              className="inline-flex items-center gap-2 px-6 py-2 bg-sky-600 text-white rounded-xl font-medium hover:bg-sky-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition text-sm"
+              className="btn btn-primary"
             >
               {loading ? (
                 <>

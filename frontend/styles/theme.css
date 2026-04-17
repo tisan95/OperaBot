@@ -1,15 +1,52 @@
 :root {
-  --color-primary: #2563eb;
-  --color-primary-dark: #1d4ed8;
-  --color-secondary: #64748b;
-  --color-error: #dc2626;
-  --color-success: #16a34a;
-  --color-warning: #ea8900;
+  /* Corporate Blue & Space Gray Palette */
+  --color-primary: #4f46e5;           /* Indigo-600: Primary action */
+  --color-primary-dark: #4338ca;      /* Indigo-700: Hover state */
+  --color-primary-light: #e0e7ff;     /* Indigo-100: Background */
+  
+  --color-secondary: #64748b;         /* Slate-500: Secondary actions */
+  --color-secondary-light: #f1f5f9;   /* Slate-100: Light backgrounds */
+  --color-secondary-lighter: #f8fafc; /* Slate-50: Minimal backgrounds */
+  
+  --color-accent: #06b6d4;            /* Cyan-500: Highlights & accents */
+  
+  --color-success: #10b981;           /* Emerald-500: Success states */
+  --color-warning: #f59e0b;           /* Amber-500: Warning states */
+  --color-error: #ef4444;             /* Red-500: Error states */
+  --color-info: #3b82f6;              /* Blue-500: Info states */
+  
+  /* Text Colors */
+  --color-text-primary: #0f172a;      /* Slate-900: Main text */
+  --color-text-secondary: #475569;    /* Slate-700: Secondary text */
+  --color-text-tertiary: #94a3b8;     /* Slate-400: Tertiary text */
+  --color-text-inverse: #f8fafc;      /* Slate-50: Text on dark backgrounds */
+  
+  /* Border Colors */
+  --color-border: #e2e8f0;            /* Slate-200: Standard borders */
+  --color-border-light: #f1f5f9;      /* Slate-100: Light borders */
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.1), 0 2px 4px -1px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.1), 0 4px 6px -2px rgba(15, 23, 42, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 10px 10px -5px rgba(15, 23, 42, 0.04);
+  
+  /* Spacing */
+  --spacing-xs: 0.25rem;  /* 4px */
+  --spacing-sm: 0.5rem;   /* 8px */
+  --spacing-md: 1rem;     /* 16px */
+  --spacing-lg: 1.5rem;   /* 24px */
+  --spacing-xl: 2rem;     /* 32px */
+  --spacing-2xl: 3rem;    /* 48px */
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-primary: #3b82f6;
-    --color-secondary: #94a3b8;
+    --color-primary: #6366f1;          /* Indigo-500 */
+    --color-primary-light: #312e81;    /* Indigo-900 */
+    --color-secondary: #94a3b8;        /* Slate-400 */
+    --color-text-primary: #f8fafc;     /* Slate-50 */
+    --color-text-secondary: #cbd5e1;   /* Slate-300 */
+    --color-border: #334155;           /* Slate-700 */
   }
 }
