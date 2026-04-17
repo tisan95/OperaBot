@@ -10,7 +10,9 @@ from app.db.database import init_db, close_db
 from app.api.routes import auth
 from app.api.routes.faq import router as faq_router
 from app.api.routes.chat import router as chat_router
+from app.api.routes.admin import router as admin_router
 import app.models.faq
+import app.models.chat_message
 
 
 # Setup logging
@@ -48,6 +50,7 @@ setup_middleware(app)
 app.include_router(auth.router)
 app.include_router(faq_router)
 app.include_router(chat_router)
+app.include_router(admin_router)
 
 
 # Health check endpoint

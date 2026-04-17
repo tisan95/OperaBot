@@ -1,6 +1,6 @@
 """Application configuration."""
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -20,14 +20,20 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8000"
 
-    # LLM (new)
-    LLM_PROVIDER: str | None = None
+    # LLM (Configuración base y nuevas variables para Ollama/Gemini)
+    LLM_PROVIDER: str = "gemini"
+    LLM_MODEL: str = "gemini-2.0-flash"
     LLM_API_KEY: str | None = None
-    LLM_MODEL: str | None = None
+    LLM_API_URL: str = "http://localhost:11434/api/generate"
+    LLM_TIMEOUT_SECONDS: int = 60
+    GEMINI_API_KEY: str | None = None
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    # Configuración de Pydantic v2
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra="ignore"  # Esto evita que el server pete si hay variables extra en el .env
+    )
 
     @property
     def allowed_origins_list(self) -> list[str]:

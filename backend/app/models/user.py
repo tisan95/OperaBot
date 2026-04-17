@@ -30,8 +30,13 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationship
+    # Relationships
     company = relationship("Company", back_populates="users")
+    chat_messages = relationship(
+        "ChatMessage",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
     # Unique email per company (not global)
     __table_args__ = (UniqueConstraint("company_id", "email", name="uq_company_email"),)

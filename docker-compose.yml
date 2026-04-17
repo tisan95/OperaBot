@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: operabot-db
+    restart: always
+    environment:
+      - POSTGRES_USER=santiago
+      - POSTGRES_PASSWORD=Santi95
+      - POSTGRES_DB=operabot_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

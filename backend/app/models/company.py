@@ -20,6 +20,12 @@ class Company(Base):
 
     # Relationships
     users = relationship("User", back_populates="company", cascade="all, delete-orphan")
+    faqs = relationship("FAQ", back_populates="company", cascade="all, delete-orphan")
+    chat_messages = relationship(
+        "ChatMessage",
+        back_populates="company",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return f"<Company(id={self.id}, name={self.name})>"
