@@ -1,8 +1,16 @@
 "use client";
+
 import { apiFetch } from "@/lib/api";
 import { FormEvent, useEffect, useState } from "react";
+// IMPORTAMOS EL CONTEXTO Y EL ROUTER
+import { useAuthContext } from "@/components/Auth/AuthProvider";
+import { useRouter } from "next/navigation";
 
 export default function DocumentsPage() {
+  // EXTRAEMOS USUARIO Y ROUTER
+  const { user } = useAuthContext();
+  const router = useRouter();
+
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -10,7 +18,18 @@ export default function DocumentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  useEffect(() => { loadDocuments(); }, []);
+  // EFECTO DE SEGURIDAD: Expulsar si no es admin
+  useEffect(() => {
+    if (user && user.role !== "admin") {
+      router.push("/dashboard");
+    }
+  }, [user, router]);
+
+  useEffect(() => { 
+    if (user?.role === "admin") {
+      loadDocuments(); 
+    }
+  }, [user]);
 
   const loadDocuments = async () => {
     setLoading(true);
@@ -85,6 +104,9 @@ export default function DocumentsPage() {
       setDeleting(null);
     }
   };
+
+  // Prevenir renderizado rápido antes de redirigir
+  if (user && user.role !== "admin") return null;
 
   return (
     <div className="p-8 space-y-6">

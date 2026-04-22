@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { useAuthContext } from "../Auth/AuthProvider";
 
 const navigation = [
-  { name: "Chat", href: "/chat", icon: "💬" },
-  { name: "FAQ", href: "/faq", icon: "❓" },
-  { name: "Documents", href: "/documents", icon: "📄" },
+  { name: "Chat", href: "/chat", icon: "💬", adminOnly: false },
+  { name: "FAQ", href: "/faq", icon: "❓", adminOnly: true },
+  { name: "Documents", href: "/documents", icon: "📄", adminOnly: true },
+  { name: "Usuarios", href: "/users", icon: "👥", adminOnly: true },
 ];
 
 export default function Sidebar() {
-  const router = useRouter();
   const pathname = usePathname();
+  const { user } = useAuthContext();
 
   return (
     <aside className="w-64 bg-slate-900 text-white shadow-lg">
@@ -28,6 +30,10 @@ export default function Sidebar() {
           <span>Panel de Control</span>
         </Link>
         {navigation.map((item) => {
+          if (item.adminOnly && user?.role !== "admin") {
+            return null;
+          }
+
           const isActive = pathname === item.href;
           return (
             <Link
