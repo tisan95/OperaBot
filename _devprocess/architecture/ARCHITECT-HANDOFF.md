@@ -36,10 +36,10 @@ Architecture phase is **COMPLETE**. All major technical decisions made. Backend 
 └────────────────┬────────────────────────┘
      ┌───────────┼───────────┐
      ↓           ↓           ↓
-┌─────────┐ ┌────────┐ ┌──────────┐
-│Postgres │ │Qdrant  │ │ Gemini   │
-│(SQL DB) │ │(Vector)│ │(LLM API) │
-└─────────┘ └────────┘ └──────────┘
+┌─────────┐ ┌────────┐ ┌─────────────┐
+│Postgres │ │Qdrant  │ │ Ollama      │
+│(SQL DB) │ │(Vector)│ │(Local LLM)  │
+└─────────┘ └────────┘ └─────────────┘
 ```
 
 ---
@@ -53,7 +53,7 @@ Architecture phase is **COMPLETE**. All major technical decisions made. Backend 
 - **ORM**: SQLAlchemy + SQLModel (async support)
 - **Vector Store**: Qdrant (self-hosted, in Docker)
 - **Embeddings**: HuggingFace Sentence-Transformers (MiniLM-L6-v2)
-- **LLM**: Google Gemini (free tier → paid tier if needed)
+- **LLM**: Ollama (local, Phi-3 for MVP, Llama3.2 for quality)
 - **Auth**: JWT + HTTP-only Cookies (secure, stateless)
 - **Testing**: pytest + fixtures
 
@@ -83,12 +83,17 @@ Architecture phase is **COMPLETE**. All major technical decisions made. Backend 
 | **ADR-001** | Backend Framework | **FastAPI** | Async-first, great LLM integration, rapid development |
 | **ADR-002** | Database Multi-Tenancy | **PostgreSQL RLS** | Single DB, cost-effective, scales to 1000+ companies |
 | **ADR-003** | Vector Store | **Qdrant** | Self-hosted, metadata filtering, cost control |
-| **ADR-004** | LLM Provider | **Gemini Free Tier** | Low-cost, large context window, flexible |
+| **ADR-004** | LLM Provider | **Ollama (Phi-3/Llama)** | Local, zero-cost, privacy-first, offline-capable |
 | **ADR-005** | Authentication | **JWT + HTTP-only Cookies** | Stateless, secure, standard approach |
 | **ADR-006** | Frontend | **Next.js + React + Tailwind** | Fast development, modern UX, responsive |
 | **ADR-007** | RAG Pattern | **Semantic Search + Context + LLM** | Grounded answers, transparency, less hallucination |
 
 **All ADRs stored in**: `_devprocess/architecture/decisions/`
+
+**Additional architecture artifacts**:
+- `_devprocess/architecture/REQUIREMENTS-ANALYSIS.md`
+- `_devprocess/architecture/INTAKE-REPORT.md`
+- `_devprocess/architecture/PLAN-CONTEXT.md`
 
 ---
 
@@ -193,10 +198,10 @@ npm run format         # Prettier
 ## 🎯 Implementation Priorities
 
 ### Phase 1: Core (Weeks 1-6)
-- [ ] User authentication + login (FEATURE-001)
-- [ ] User dashboard + FAQ browser (FEATURE-002, FEATURE-005)
-- [ ] FAQ CRUD + document upload (FEATURE-013, FEATURE-014)
-- [ ] Chat interface + RAG integration (FEATURE-008, FEATURE-009)
+- [x] User authentication + login (FEATURE-001) → **ISSUE-002 ✅ Done**
+- [x] User dashboard + FAQ browser (FEATURE-002, FEATURE-005) → **ISSUE-003 ✅ Done**
+- [x] Chat interface + RAG integration (FEATURE-008, FEATURE-009) → **ISSUE-004 ✅ Done**
+- [x] FAQ CRUD + document upload (FEATURE-013, FEATURE-014) → **ISSUE-005 ✅ Done**
 
 ### Phase 2: Quality & Analytics (Weeks 7-10)
 - [ ] Answer rating + escalation (FEATURE-011, FEATURE-012)
@@ -252,7 +257,7 @@ npm run format         # Prettier
 - Audit logging (Phase 2)
 
 ### External APIs
-- Gemini API timeout: 5 seconds (fail fast)
+- Ollama local timeout: 5 seconds (fail fast, graceful fallback if unavailable)
 - Trello API error handling (graceful fallback)
 - Rate limiting (Phase 2)
 
@@ -324,11 +329,11 @@ git tag v1.0.0 → GitHub Actions → Build + Push images → Deploy to K8s
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|-----------|
-| Gemini API quality insufficient (H-2) | Medium | High | Test in MVP, fallback to GPT-4 if needed |
+| Ollama inference quality insufficient | Low | Medium | Test with Phi-3 in MVP, upgrade to Llama3.2 if needed |
 | Qdrant performance issues at scale | Low | Medium | Load testing, optimization, managed service fallback |
 | Multi-tenancy RLS bugs | Low | Critical | Security audit, extensive testing |
 | Frontend responsiveness on warehouse phones | Medium | Medium | Mobile testing early, progressive enhancement |
-| LLM cost overruns | Low | Medium | Rate limiting, usage monitoring |
+| Ollama container memory pressure | Low | Medium | Monitor resource usage, consider smaller models or GPU |
 
 ---
 

@@ -1,7 +1,7 @@
 # ADR-004: LLM Provider Integration & Fallback Strategy
 
 **Status**: Accepted  
-**Date**: 2026-04-15  
+**Date**: 2026-04-15 | **Updated**: 2026-04-20  
 **Author**: Architect  
 **Scope**: MVP Chat RAG Pipeline
 
@@ -9,178 +9,209 @@
 
 ## Context and Problem Statement
 
-OperaBot chat feature (FEATURE-008, FEATURE-009) requires integration with an external LLM to generate answers based on retrieved company documents.
+OperaBot chat feature (FEATURE-008, FEATURE-009) requires integration with a local LLM to generate answers based on retrieved company documents. No external API calls to cloud LLM services (Gemini, OpenAI, Claude) due to privacy, cost, and latency requirements.
 
 **Requirements**:
-- Low-cost or free tier (to keep MVP budget low, <€20/month LLM cost per company)
+- Zero cloud API costs (self-hosted LLM)
 - Support for context-aware generation (RAG: pass retrieved documents as context)
-- <5 second response time (including API call latency)
-- Ability to swap providers later without rewriting application logic
-- Suitable for operational question-answering (not just general knowledge)
+- <5 second response time (local inference)
+- Ability to run entirely offline (no external dependencies)
+- Suitable for operational question-answering with company knowledge
 
-**Key Question**: Which LLM provider for MVP, and how to design for future flexibility?
+**Key Question**: Which local LLM for MVP with best balance of quality, speed, and resource usage?
 
 ## Decision Drivers
 
-1. **Cost**: MVP budget constraint (€500-750/month per customer, <€20 for LLM)
-2. **Hypothesis H-2**: "Low-cost LLMs are good enough for operational answers with RAG"
-3. **Flexibility**: Should be able to swap providers without major refactoring
-4. **Latency**: <5 sec total response time (including LLM call)
+1. **Privacy**: No cloud API calls, all data stays on-premise
+2. **Cost**: Zero cloud LLM fees (self-hosted only)
+3. **Latency**: <5 sec total response time (local inference)
+4. **Flexibility**: Should be able to swap local models without code changes
 5. **Context Quality**: Must work well with RAG (long context windows preferred)
+6. **Resource Efficiency**: Run on modest hardware (CPU or small GPU)
 
 ## Considered Options
 
-### Option 1: Google Gemini (Free Tier) (CHOSEN)
+### Option 1: Google Gemini API (Rejected)
 ```
-Setup: Gemini API with free tier (60 requests/minute)
+Setup: Cloud API with API key
 
 Pros:
-- Free tier available (good for MVP cost control)
+- High quality answers
 - Large context window (100K tokens)
-- Good performance on instruction-following tasks
-- Supports streaming (for progressive answer generation)
-- Affordable paid tier if exceeding free limits
 
 Cons:
-- Free tier rate limits (60 req/min, shared across MVP company)
-- May need upgrade quickly if popular
-- Less sophisticated than GPT-4 but acceptable for operational QA
+- Requires cloud connectivity (privacy risk)
+- API costs accumulate (not zero-cost)
+- External dependency (if API down, feature fails)
+- Data leaves on-premise (company policy violation)
 ```
 
-### Option 2: Anthropic Claude (Free Tier)
-```
-Pros:
-- Claude 3.5 Sonnet is excellent for reasoning
-- Free tier available (but limited)
-- Good context window
-
-Cons:
-- Free tier very limited (better to just use paid)
-- Paid tier more expensive than Gemini
-- Overkill for operational QA (better for complex reasoning)
-```
-
-### Option 3: OpenAI GPT-4 (Paid)
+### Option 2: OpenAI GPT-4 API (Rejected)
 ```
 Pros:
 - Best quality answers
 - Well-documented
-- Widely used
 
 Cons:
-- Expensive (not free tier)
-- Doesn't fit MVP cost budget
-- Overkill for operational QA
+- Expensive API calls
+- Requires internet connection
+- External dependency
+- Data shared with third party
 ```
 
-### Option 4: Open-Source Local LLM (Ollama, LLaMA, etc.)
+### Option 3: Anthropic Claude API (Rejected)
 ```
 Pros:
-- Free (no API costs)
-- No vendor lock-in
-- Can run locally
+- Excellent reasoning
+- Good documentation
 
 Cons:
-- Operational overhead (self-host, manage model updates)
-- Weaker quality than commercial models
-- Requires GPU for acceptable performance
-- Not suitable for MVP timeline
+- More expensive than Gemini
+- Cloud-dependent
+- External API calls
+- Same privacy concerns
+```
+
+### Option 4: Local LLM with Ollama (CHOSEN)
+```
+Setup: Ollama + Phi-3 or Llama3.2 models running locally in Docker
+
+Pros:
+- Zero cloud costs (self-hosted)
+- No API keys or external connectivity needed
+- All data stays on-premise (privacy compliant)
+- Can run on CPU (acceptable for MVP latency)
+- Easy model swaps (Phi-3 for speed, Llama3.2 for quality)
+- Docker deployment for easy setup
+- Can run offline completely
+
+Cons:
+- Lower quality than GPT-4 or Claude (acceptable for operational QA)
+- Slightly longer latency on CPU (~3-5s, within budget)
+- Self-managed (no support team, but open-source community)
 ```
 
 ## Decision Outcome
 
-**Choose: Google Gemini (Free Tier, with paid tier fallback)**
+**Choose: Local LLM with Ollama (Phi-3 for MVP, Llama3.2 for quality)**
 
 **Rationale**:
-1. **Cost Alignment**: Free tier supports MVP cost budget (<€20/month).
-2. **Hypothesis H-2 Validation**: Gemini free tier tests if low-cost models are acceptable for operational QA.
-3. **Context Window**: 100K token window is excellent for RAG (can pass multiple documents + long context).
-4. **Flexibility**: If free tier insufficient, easy upgrade to paid tier without code changes.
-5. **Performance**: Gemini response time typically <3 sec (within <5 sec budget for total response).
+1. **Privacy & Compliance**: All data stays on-premise, no external API calls (critical for enterprise customer trust).
+2. **Zero Cost**: No cloud API fees, completely self-hosted and free.
+3. **Offline-First**: Works entirely without internet connectivity (production resilience).
+4. **Model Flexibility**: Can swap between Phi-3 (fast, 3B params) for MVP and Llama3.2 (quality, 7-8B) for scaling.
+5. **Docker Native**: Runs in containers alongside PostgreSQL and Qdrant (simple deployment).
+6. **Latency**: Phi-3 achieves <5 sec on CPU, <2 sec on GPU (acceptable for MVP).
 
 ## Architecture
 
-### LLM Abstraction Layer (Important for Future Flexibility)
+### Ollama Integration Pattern
 ```python
-# In fastapi backend:
+# In backend/app/services/llm_client.py
 
-# Abstract interface for LLM providers
-class LLMProvider:
-    async def generate_answer(
-        self,
-        question: str,
-        context_docs: List[str],
-        confidence: float
-    ) -> str:
-        pass
+async def _generate_with_ollama(
+    question: str,
+    faq_context: List[FAQ] = None
+) -> str:
+    """Call local Ollama server at http://localhost:11434"""
+    
+    # Build context from retrieved FAQs
+    faq_text = ""
+    for faq in faq_context[:5]:
+        faq_text += f"Q: {faq.question}\nA: {faq.answer}\n\n"
+    
+    # Call Ollama
+    prompt = f"""You are OperaBot, an operational knowledge assistant.
+Answer based on company knowledge base.
+If you don't know, say so.
 
-# Gemini implementation
-class GeminiProvider(LLMProvider):
-    async def generate_answer(...):
-        # Call Gemini API
+Knowledge Base:
+{faq_text}
 
-# Future: Can add AnthropicProvider, OpenAIProvider without changing application logic
+Question: {question}
+
+Answer:"""
+    
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:11434/api/generate",
+            json={
+                "model": "phi-3",  # or llama3.2 for quality
+                "prompt": prompt,
+                "stream": False,
+            },
+            timeout=5.0  # Fail fast at 5 sec
+        )
+    
+    if response.status_code == 200:
+        return response.json()["response"]
+    else:
+        return _get_fallback_response(question)
 ```
 
-### Prompt Engineering for RAG
-```
-System prompt:
-"You are an operational knowledge assistant for a warehouse/manufacturing company.
-Answer questions based ONLY on the provided company procedures and documents.
-If the provided information is insufficient, say 'I don't have information on this topic.'
-Do NOT provide general internet knowledge or make assumptions."
+### Model Selection for MVP
 
-User prompt:
-"Question: {user_question}
+**Phi-3 (3B parameters)**:
+- Best for MVP (fast, low memory)
+- Runs on CPU at ~2-4 sec per query
+- Adequate quality for operational QA
+- Model size: ~1.8 GB
 
-Relevant company procedures:
-{retrieved_documents}
-
-Answer:"
-```
+**Llama3.2 (7-8B parameters)**:
+- Better quality, slower (~4-6 sec on CPU)
+- Use if MVP shows quality issues
+- Requires more memory
+- Model size: ~4-5 GB
 
 ### Confidence & Fallback Strategy
 ```
-If Gemini API fails or is slow:
+If Ollama is not running:
 1. Timeout: <5 sec (fail fast, don't wait)
-2. Fallback response: "I couldn't retrieve an answer right now. Please try again or escalate to a human."
-3. Log error for debugging
-4. No silent failures (user is informed)
+2. Fallback response: "Knowledge base unavailable. Please try again."
+3. Log error for monitoring
+4. Continue operation (don't crash)
 
-If Gemini generates unhelpful answer:
-- Rely on user feedback (FEATURE-011) to identify quality issues
-- Monitor "escalation rate" metric (target <30%)
+If Ollama generates poor answer:
+- Rely on user feedback (FEATURE-011) for quality signals
+- Monitor escalation rate (target <20%)
+- Consider upgrading to Llama3.2 if > 20% escalations
 ```
 
 ## Consequences
 
 ### Good
-- Free tier MVP cost (validates cost model before scaling)
-- Simple API integration (Google SDK well-documented)
-- Flexibility to upgrade or switch if needed
-- Large context window perfect for RAG
+- Zero cloud costs (no API fees ever)
+- Privacy-first (all data stays on-premise)
+- Offline-capable (works without internet)
+- Model flexibility (can swap Phi-3 to Llama3.2 anytime)
+- Self-hosted (full control, no vendor lock-in)
+- Docker deployment (same stack as PostgreSQL, Qdrant)
 
 ### Bad
-- Rate limits on free tier (if MVP becomes very popular)
-- Dependent on Gemini API availability (but we accept 99.5% uptime)
-- Quality tier below GPT-4 (but acceptable for MVP validation of H-2)
+- Slightly lower quality than commercial LLMs (but acceptable for MVP)
+- Local CPU usage (~2-5 sec latency on CPU, acceptable for MVP)
+- Operational responsibility (manage Ollama container, model updates)
 
 ### Neutral
-- Need to implement fallback/retry logic (standard practice)
+- Need to implement fallback/retry logic (standard practice for any LLM)
+- Requires Docker Compose update (Ollama service added)
 
 ## Confirmation
 
 This decision is confirmed by:
-1. **Quality Testing**: Validate Gemini answers meet ≥75% helpful rating threshold (FEATURE-011 metrics)
-2. **Cost Analysis**: Verify actual cost per company is <€20/month in pilot
-3. **Latency Testing**: Ensure <5 sec total response time (including Gemini call)
-4. **Rate Limit Testing**: Confirm free tier limits don't interfere with pilot usage
-5. **Escalation Testing**: Track escalation rate; if >30%, may need better LLM
+1. **Quality Testing**: Validate Phi-3 answers meet ≥70% helpful rating (FEATURE-011 metrics)
+2. **Latency Testing**: Ensure <5 sec total response time (including Ollama inference)
+3. **Offline Testing**: Confirm chat works when internet is unavailable
+4. **Cost Verification**: Confirm zero cloud API costs in production
+5. **Escalation Testing**: Track escalation rate; if >20%, upgrade to Llama3.2
+6. **Docker Verification**: Confirm Ollama container health checks pass
 
 ## Research Links
 
-- https://ai.google.dev/gemini-api/docs — Google Gemini API documentation
-- https://ai.google.dev/pricing — Gemini API pricing
-- https://python.langchain.com/docs/integrations/llms/google_generativeai — LangChain + Gemini
-- https://github.com/google-generativeai/google-generativeai-python — Python SDK
+- https://ollama.ai — Ollama documentation
+- https://github.com/ollama/ollama — Ollama GitHub repository
+- https://huggingface.co/microsoft/phi-3 — Phi-3 model (3B parameters)
+- https://huggingface.co/meta-llama/Llama-3.2 — Llama 3.2 models
+- https://github.com/ollama/ollama/blob/main/docs/modelfile.md — Model configuration
+- https://github.com/ollama/ollama/blob/main/docs/api.md — Ollama REST API
 

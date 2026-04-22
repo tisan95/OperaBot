@@ -1,386 +1,197 @@
-"""LLM client for integrating with Gemini or other providers."""
+"""LLM client for local inference with Ollama (no cloud APIs)."""
 
 import httpx
 import asyncio
 import logging
-from typing import Any, List
+from typing import Any, List, Dict
 from app.config import settings
-from app.models.faq import FAQ
 
 logger = logging.getLogger(__name__)
 
 
-async def generate_answer(message: str, faq_context: List[FAQ] = None) -> str:
-    """Generate an answer using the configured LLM provider.
-
-    Args:
-        message: The user's question/message.
-        faq_context: List of FAQ objects for context (optional).
-
-    Returns:
-        Generated answer text, or a fallback response if LLM is not configured.
-    """
-    # Validate input
+async def generate_answer_with_sources(message: str, company_id: str) -> Dict[str, Any]:
+    """Generate an answer using RAG with sources from FAQs and Documents."""
     if not message or not isinstance(message, str):
         logger.error(f"Invalid message input: {type(message)}")
-        return "I didn't understand that. Could you please try again?"
-
-    provider = getattr(settings, 'LLM_PROVIDER', None)
-    model = getattr(settings, 'LLM_MODEL', None)
-
-    if not provider or not provider.strip() or not model or not model.strip():
-        missing = []
-        if not provider or not provider.strip():
-            missing.append('LLM_PROVIDER')
-        if not model or not model.strip():
-            missing.append('LLM_MODEL')
-        logger.info(f"LLM not fully configured (missing: {', '.join(missing)}). Using fallback.")
-        return _get_fallback_response(message)
-
-    provider_lower = provider.lower().strip()
-    logger.info(f"LLM configured: provider={provider_lower}, model={model}")
-
-    if provider_lower == "ollama":
-        return await _generate_with_ollama(message, faq_context)
-
-    api_key = getattr(settings, 'LLM_API_KEY', None)
-    if not api_key or not api_key.strip():
-        logger.info("LLM_API_KEY is missing for Gemini provider. Using fallback.")
-        return _get_fallback_response(message)
-
-    if provider_lower == "gemini":
-        return await _generate_with_gemini(message, faq_context)
-
-    logger.warning(f"Unknown LLM provider: '{provider}'. Using fallback.")
-    return _get_fallback_response(message)
-
-
-async def _generate_with_ollama(message: str, faq_context: List[FAQ] = None) -> str:
-    """Call a local Ollama server to generate an answer.
-
-    Args:
-        message: The user's question.
-        faq_context: List of FAQ objects for context.
-
-    Returns:
-        Generated answer text. Falls back to placeholder if Ollama fails.
-    """
-    logger.info(f"Starting Ollama API call with message: '{message[:50]}...'")
+        return {
+            "answer": "I didn't understand that. Could you please try again?",
+            "sources": [],
+            "confidence": 0.0
+        }
 
     try:
-        system_prompt = """You are OperaBot, an AI assistant for operational knowledge.
-You help users find answers to common operational questions based on a knowledge base.
-Be concise, helpful, and professional. If you do not know something, say so."""
+        from app.services.qdrant_service import qdrant_service
+        
+        try:
+            logger.info(f"[RAG] Searching knowledge base for company {company_id}")
+            knowledge = qdrant_service.search_knowledge(message, company_id, limit_per_collection=3)
+            logger.info(f"[RAG] Knowledge search returned {len(knowledge.get('faqs', []))} FAQs + {len(knowledge.get('documents', []))} documents")
+        except Exception as e:
+            logger.error(f"[RAG] Qdrant search failed: {type(e).__name__}: {e}", exc_info=True)
+            knowledge = {"faqs": [], "documents": []}
+        
+        try:
+            logger.info(f"[RAG] Building context from {len(knowledge.get('faqs', []))} FAQs and {len(knowledge.get('documents', []))} documents")
+            context_text = _build_context(knowledge)
+            logger.info(f"[RAG] Context built: {len(context_text)} chars")
+        except Exception as e:
+            logger.error(f"[RAG] Context building failed: {type(e).__name__}: {e}", exc_info=True)
+            context_text = ""
+        
+        try:
+            logger.info(f"[LLM] Starting answer generation with Ollama")
+            answer = await _generate_with_ollama(message, context_text)
+            logger.info(f"[LLM] Answer generated successfully: {len(answer)} chars")
+        except Exception as e:
+            logger.error(f"[LLM] Answer generation failed: {type(e).__name__}: {e}", exc_info=True)
+            answer = "I encountered an error generating an answer. Please try again."
+        
+        try:
+            logger.info(f"[RAG] Extracting sources from knowledge")
+            sources = _extract_sources(knowledge)
+            logger.info(f"[RAG] Extracted {len(sources)} sources")
+        except Exception as e:
+            logger.error(f"[RAG] Source extraction failed: {type(e).__name__}: {e}", exc_info=True)
+            sources = []
+        
+        try:
+            logger.info(f"[RAG] Calculating confidence score")
+            confidence = _calculate_confidence(knowledge)
+            logger.info(f"[RAG] Confidence: {confidence:.2f}")
+        except Exception as e:
+            logger.error(f"[RAG] Confidence calculation failed: {type(e).__name__}: {e}", exc_info=True)
+            confidence = 0.0
+        
+        return {
+            "answer": answer,
+            "sources": sources,
+            "confidence": confidence
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating answer with sources: {e}")
+        return {
+            "answer": "I encountered an error processing your question. Please try again.",
+            "sources": [],
+            "confidence": 0.0
+        }
 
-        faq_text = ""
-        faq_count = 0
-        if faq_context and len(faq_context) > 0:
-            faq_text = "\n\nKnowledge Base (FAQs):\n"
-            for faq in faq_context[:5]:
-                if faq and hasattr(faq, 'question') and hasattr(faq, 'answer'):
-                    category = getattr(faq, 'category', None) or "General"
-                    faq_text += f"\n- [{category}] Q: {faq.question}\n  A: {faq.answer}"
-                    faq_count += 1
-            logger.info(f"Including {faq_count} FAQs as context")
+
+def _build_context(knowledge: Dict[str, List[Dict[str, Any]]]) -> str:
+    context = ""
+    if knowledge.get("faqs"):
+        for faq in knowledge["faqs"][:3]:
+            payload = faq.get("payload", {})
+            question = payload.get("question", "")
+            answer = payload.get("answer", "")
+            if question and answer:
+                context += f"\nPregunta FAQ: {question}\nRespuesta FAQ: {answer}\n"
+    
+    if knowledge.get("documents"):
+        for doc in knowledge["documents"][:3]:
+            payload = doc.get("payload", {})
+            text = payload.get("text", "")
+            if text:
+                context += f"\nFragmento de PDF:\n{text[:500]}...\n"
+    
+    return context
+
+
+def _extract_sources(knowledge: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, str]]:
+    sources = []
+    seen_titles = set()  # <--- Filtro antimareos (evita duplicados)
+    
+    for faq in knowledge.get("faqs", []):
+        payload = faq.get("payload", {})
+        question = payload.get("question", "")
+        # Solo lo añade si no lo ha visto antes
+        if question and question not in seen_titles:
+            seen_titles.add(question)
+            sources.append({
+                "type": "FAQ",
+                "title": question,
+                "score": f"{faq.get('score', 0):.2f}"
+            })
+            
+    for doc in knowledge.get("documents", []):
+        payload = doc.get("payload", {})
+        filename = payload.get("filename", "unknown")
+        # Solo lo añade si el PDF no está ya en la lista
+        if filename and filename not in seen_titles:
+            seen_titles.add(filename)
+            sources.append({
+                "type": "Document",
+                "title": filename,
+                "score": f"{doc.get('score', 0):.2f}"
+            })
+            
+    return sources
+
+
+def _calculate_confidence(knowledge: Dict[str, List[Dict[str, Any]]]) -> float:
+    scores = []
+    for faq in knowledge.get("faqs", []):
+        scores.append(faq.get("score", 0))
+    for doc in knowledge.get("documents", []):
+        scores.append(doc.get("score", 0))
+    if not scores:
+        return 0.0
+    avg_score = sum(scores) / len(scores)
+    return min(max(avg_score, 0.0), 1.0)
+
+
+async def _generate_with_ollama(message: str, context: str) -> str:
+    try:
+        if not context.strip():
+            full_prompt = f"El usuario pregunta: '{message}'. Dile amablemente que no tienes información en la base de conocimientos para responder a eso."
         else:
-            logger.info("No FAQ context provided")
+            # AQUÍ ESTÁN LAS REGLAS DE ORO
+            full_prompt = f"""Eres un asistente estricto y profesional. Tu ÚNICA fuente de verdad es la INFORMACIÓN de abajo.
 
-        full_prompt = f"""{system_prompt}
+REGLAS DE ORO OBLIGATORIAS:
+1. Responde ÚNICA Y EXCLUSIVAMENTE con los datos de la información proporcionada.
+2. Si la información es simple o parece tonta (ej. "las funciones son funciones"), responde EXACTAMENTE eso. Está prohibido añadir conocimiento técnico propio o extender la respuesta.
+3. ESTÁ TOTALMENTE PROHIBIDO decir frases como "según el documento proporcionado", "en el fragmento", "el texto dice" o "lee el PDF". Debes dar la información tú mismo directamente.
+4. Si la información contiene instrucciones o pasos, extráelos y redacta los pasos tú mismo claramente en una lista. No mandes al usuario a leerlos.
+5. No inventes absolutamente nada.
 
-{faq_text}
+INFORMACIÓN DISPONIBLE:
+{context[:5000]}
 
-User Question: {message}
+PREGUNTA DEL USUARIO: {message}
 
-Please provide a helpful answer based on the knowledge base above if relevant, or your general knowledge."""
+RESPUESTA DIRECTA:"""
 
-        if len(full_prompt) > 30000:
-            logger.warning("Prompt too large for Ollama API. Truncating FAQ context.")
-            faq_text = "\n\nKnowledge Base (FAQs):\n"
-            faq_count = 0
-            for faq in (faq_context[:2] if faq_context else []):
-                if faq and hasattr(faq, 'question') and hasattr(faq, 'answer'):
-                    category = getattr(faq, 'category', None) or "General"
-                    faq_text += f"\n- [{category}] Q: {faq.question}\n  A: {faq.answer}"
-                    faq_count += 1
-            full_prompt = f"""{system_prompt}
-
-{faq_text}
-
-User Question: {message}
-
-Please provide a helpful answer based on the knowledge base above if relevant."""
-            logger.info(f"Reduced to {faq_count} FAQs due to prompt size limits")
-
-        logger.info(f"Prompt size: {len(full_prompt)} chars")
+        logger.info(f"[LLM] Generating answer for: '{message[:50]}...' (prompt size: {len(full_prompt)} chars)")
 
         ollama_url = getattr(settings, 'LLM_API_URL', None) or "http://localhost:11434/api/generate"
-        timeout = getattr(settings, 'LLM_TIMEOUT_SECONDS', 120)
-        timeout_float = float(timeout) if timeout else 120.0
-
+        timeout = float(getattr(settings, 'LLM_TIMEOUT_SECONDS', 120) or 120)
+        
         payload = {
             "model": settings.LLM_MODEL,
             "prompt": full_prompt,
             "stream": False,
-        }
-
-        logger.info(f"🔥 OLLAMA REQUEST DEBUG 🔥")
-        logger.info(f"  URL: {ollama_url}")
-        logger.info(f"  Model: {settings.LLM_MODEL} (🚀 Micro-model: 1B parameters)")
-        logger.info(f"  Timeout: {timeout_float}s")
-        logger.info(f"  Payload keys: {list(payload.keys())}")
-        logger.info(f"  Prompt length: {len(payload['prompt'])} chars")
-
-        async with httpx.AsyncClient(timeout=timeout_float) as client:
-            try:
-                logger.info("🌐 Making HTTP POST request to Ollama...")
-                response = await client.post(ollama_url, json=payload)
-                logger.info(f"📡 Response received - Status: {response.status_code}")
-            except httpx.TimeoutException as te:
-                logger.error(f"❌ TIMEOUT at {timeout_float}s: {te}")
-                raise
-            except Exception as req_err:
-                logger.error(f"❌ REQUEST ERROR: {type(req_err).__name__}: {req_err}")
-                raise
-
-        logger.info(f"🔥 OLLAMA RESPONSE DEBUG 🔥")
-        logger.info(f"  Status Code: {response.status_code}")
-        logger.info(f"  Response Headers: {dict(response.headers)}")
-        logger.info(f"  Response Body Length: {len(response.text)} chars")
-        logger.info(f"  Response Body (first 500 chars): {response.text[:500]}")
-        
-        if response.status_code != 200:
-            logger.error(f"❌ OLLAMA ERROR - Status: {response.status_code}")
-            logger.error(f"❌ OLLAMA ERROR - Full Response: {response.text}")
-            return _get_fallback_response(message)
-
-        try:
-            result = response.json()
-            logger.info(f"✅ JSON parsed successfully")
-            logger.info(f"  Response keys: {list(result.keys())}")
-            logger.info(f"  Response (full): {result}")
-        except Exception as json_err:
-            logger.error(f"❌ JSON PARSE ERROR: {type(json_err).__name__}: {json_err}")
-            logger.error(f"❌ Failed to parse response: {response.text}")
-            return _get_fallback_response(message)
-
-        text = _extract_ollama_text(result)
-        if text:
-            logger.info(f"✅ Successfully extracted Ollama response: {len(text)} chars")
-            return text
-
-        logger.warning(f"⚠️ Unexpected Ollama response structure: {result}")
-        return _get_fallback_response(message)
-
-    except httpx.TimeoutException as timeout_err:
-        logger.error(f"❌ TIMEOUT EXCEPTION - Ollama took longer than {timeout_float}s")
-        logger.error(f"❌ Timeout details: {timeout_err}")
-        return _get_fallback_response(message)
-    except httpx.ConnectError as conn_err:
-        logger.error(f"❌ CONNECTION ERROR - Cannot reach Ollama at {ollama_url}")
-        logger.error(f"❌ Connection details: {type(conn_err).__name__}: {conn_err}")
-        return _get_fallback_response(message)
-    except Exception as e:
-        logger.error(f"❌ UNEXPECTED ERROR - {type(e).__name__}: {e}")
-        logger.error(f"❌ Full traceback:", exc_info=True)
-        return _get_fallback_response(message)
-
-
-def _extract_ollama_text(result: Any) -> str | None:
-    """Extract the generated answer text from an Ollama response payload."""
-    logger.info(f"🔍 EXTRACTING OLLAMA TEXT - Result type: {type(result)}")
-    
-    if isinstance(result, dict):
-        logger.info(f"🔍 Result is a dict with keys: {list(result.keys())}")
-        
-        # Try direct keys
-        for key in ("response", "text", "result"):
-            value = result.get(key)
-            logger.info(f"🔍 Trying key '{key}': {type(value)} = {value[:100] if isinstance(value, str) else value}")
-            if isinstance(value, str) and value.strip():
-                logger.info(f"✅ Found text at key '{key}': {len(value)} chars")
-                return value.strip()
-
-        # Try nested results
-        if "results" in result and isinstance(result["results"], list):
-            logger.info(f"🔍 Found 'results' list with {len(result['results'])} items")
-            for idx, item in enumerate(result["results"]):
-                if isinstance(item, dict):
-                    logger.info(f"🔍   Item {idx} keys: {list(item.keys())}")
-                    for key in ("response", "text", "result"):
-                        value = item.get(key)
-                        if isinstance(value, str) and value.strip():
-                            logger.info(f"✅ Found text at results[{idx}]['{key}']: {len(value)} chars")
-                            return value.strip()
-                    content = item.get("content")
-                    if isinstance(content, dict):
-                        logger.info(f"🔍   Item {idx} has 'content' dict with keys: {list(content.keys())}")
-                        for key in ("response", "text", "result"):
-                            value = content.get(key)
-                            if isinstance(value, str) and value.strip():
-                                logger.info(f"✅ Found text at results[{idx}]['content']['{key}']: {len(value)} chars")
-                                return value.strip()
-
-        # Try output
-        if "output" in result and isinstance(result["output"], str) and result["output"].strip():
-            logger.info(f"✅ Found text at key 'output': {len(result['output'])} chars")
-            return result["output"].strip()
-
-    logger.warning(f"⚠️ Could not extract text from result: {result}")
-    return None
-
-
-async def _generate_with_gemini(message: str, faq_context: List[FAQ] = None) -> str:
-    """Call Google Gemini API to generate an answer.
-
-    Args:
-        message: The user's question.
-        faq_context: List of FAQ objects for context.
-
-    Returns:
-        Generated answer text. Falls back to placeholder if API fails.
-    """
-    logger.info(f"Starting Gemini API call with message: '{message[:50]}...'")
-    
-    try:
-        # Build the system prompt
-        system_prompt = """You are OperaBot, an AI assistant for operational knowledge. 
-You help users find answers to common operational questions based on a knowledge base.
-Be concise, helpful, and professional. If you don't know something, say so."""
-
-        # Build FAQ context (limit to 5 FAQs to avoid huge prompts)
-        faq_text = ""
-        faq_count = 0
-        if faq_context and len(faq_context) > 0:
-            faq_text = "\n\nKnowledge Base (FAQs):\n"
-            for faq in faq_context[:5]:
-                if faq and hasattr(faq, 'question') and hasattr(faq, 'answer'):
-                    category = getattr(faq, 'category', None) or "General"
-                    faq_text += f"\n- [{category}] Q: {faq.question}\n  A: {faq.answer}"
-                    faq_count += 1
-            logger.info(f"Including {faq_count} FAQs as context")
-        else:
-            logger.info("No FAQ context provided")
-
-        # Build the full prompt
-        full_prompt = f"""{system_prompt}
-
-{faq_text}
-
-User Question: {message}
-
-Please provide a helpful answer based on the knowledge base above if relevant, or your general knowledge."""
-
-        # Validate prompt size (Gemini has limits)
-        if len(full_prompt) > 30000:  # ~30k chars is safe
-            logger.warning("Prompt too large for Gemini API. Truncating FAQ context.")
-            # Rebuild with fewer FAQs
-            faq_text = "\n\nKnowledge Base (FAQs):\n"
-            faq_count = 0
-            for faq in (faq_context[:2] if faq_context else []):
-                if faq and hasattr(faq, 'question') and hasattr(faq, 'answer'):
-                    category = getattr(faq, 'category', None) or "General"
-                    faq_text += f"\n- [{category}] Q: {faq.question}\n  A: {faq.answer}"
-                    faq_count += 1
-            full_prompt = f"""{system_prompt}
-
-{faq_text}
-
-User Question: {message}
-
-Please provide a helpful answer based on the knowledge base above if relevant."""
-            logger.info(f"Reduced to {faq_count} FAQs due to prompt size limits")
-
-        logger.info(f"Prompt size: {len(full_prompt)} chars")
-
-        # Build the API request
-        api_url = "https://generativelanguage.googleapis.com/v1/models/{model}:generateContent".format(
-            model=settings.LLM_MODEL
-        )
-        api_url_with_key = f"{api_url}?key={settings.LLM_API_KEY}"
-        
-        logger.info(f"Calling Gemini API at model: {settings.LLM_MODEL}")
-
-        payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {"text": full_prompt}
-                    ]
-                }
-            ],
-            "generationConfig": {
-                "temperature": 0.7,
-                "topK": 40,
-                "topP": 0.95,
-                "maxOutputTokens": 1024,
+            "options": {
+                "temperature": 0.0, # <--- Esto mata la creatividad y la invención.
+                "top_k": 10,
+                "top_p": 0.5
             }
         }
 
-        # Call the API
-        timeout = getattr(settings, 'LLM_TIMEOUT_SECONDS', 120)
-        timeout_float = float(timeout) if timeout else 120.0
-        logger.info(f"Making HTTP POST request to Gemini API with {timeout_float}s timeout...")
-        async with httpx.AsyncClient(timeout=timeout_float) as client:
-            response = await client.post(api_url_with_key, json=payload)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(ollama_url, json=payload)
 
-        logger.info(f"Gemini API response status: {response.status_code}")
-        
-        # Validate response status
         if response.status_code != 200:
-            logger.error(
-                f"Gemini API returned {response.status_code}: {response.text[:200]}"
-            )
-            return _get_fallback_response(message)
+            return "Error de conexión con la IA local."
 
-        # Parse and extract response
-        try:
-            result = response.json()
-            logger.info(f"Gemini API response parsed successfully")
-        except Exception as json_err:
-            logger.error(f"Failed to parse Gemini API response: {json_err}")
-            return _get_fallback_response(message)
-
-        # Log response structure
-        logger.info(f"Response keys: {list(result.keys())}")
+        result = response.json()
+        answer_text = result.get("response", "")
         
-        # Extract text from response
-        if result.get("candidates") and len(result["candidates"]) > 0:
-            logger.info(f"Found {len(result['candidates'])} candidates in response")
-            content = result["candidates"][0].get("content", {})
-            logger.info(f"Content keys: {list(content.keys())}")
-            
-            if content.get("parts") and len(content["parts"]) > 0:
-                logger.info(f"Found {len(content['parts'])} parts in content")
-                text = content["parts"][0].get("text", "")
-                
-                if text and isinstance(text, str):
-                    logger.info(f"✅ Successfully extracted Gemini response: {len(text)} chars")
-                    return text
-                else:
-                    logger.warning(f"Part text is empty or not a string: {type(text)}")
-            else:
-                logger.warning("No parts found in content")
-        else:
-            logger.warning("No candidates found in response")
+        if not answer_text:
+            return "La IA no generó respuesta."
 
-        logger.warning(f"Unexpected Gemini response structure: {result}")
-        return _get_fallback_response(message)
+        return answer_text.strip()
 
-    except asyncio.TimeoutError:
-        logger.error(f"❌ Gemini API call timed out ({timeout_float}s timeout exceeded)")
-        return _get_fallback_response(message)
     except Exception as e:
-        logger.error(f"❌ Unexpected error calling Gemini API: {type(e).__name__}: {e}", exc_info=True)
-        return _get_fallback_response(message)
-
-
-def _get_fallback_response(message: str) -> str:
-    """Return a friendly fallback response.
-
-    Args:
-        message: The original user message.
-
-    Returns:
-        A fallback response string.
-    """
-    return f"Thanks for your message: '{message}'. I'm learning to respond better!"
+        logger.error(f"[LLM] Unexpected error generating answer: {type(e).__name__}: {e}", exc_info=True)
+        return f"Error: {str(e)}"

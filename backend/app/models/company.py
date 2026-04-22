@@ -21,6 +21,7 @@ class Company(Base):
     # Relationships
     users = relationship("User", back_populates="company", cascade="all, delete-orphan")
     faqs = relationship("FAQ", back_populates="company", cascade="all, delete-orphan")
+    documents = relationship("Document", back_populates="company", cascade="all, delete-orphan")
     chat_messages = relationship(
         "ChatMessage",
         back_populates="company",

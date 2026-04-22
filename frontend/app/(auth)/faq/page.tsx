@@ -13,6 +13,8 @@ export default function FAQPage() {
   const [answer, setAnswer] = useState("");
   const [category, setCategory] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<number | null>(null);
+  const [editingFaqId, setEditingFaqId] = useState<number | null>(null);
 
   const loadFaqs = async () => {
     setLoading(true);
@@ -32,6 +34,49 @@ export default function FAQPage() {
     loadFaqs();
   }, []);
 
+  const handleEditClick = (faq: FAQ) => {
+    setEditingFaqId(faq.id);
+    setQuestion(faq.question);
+    setAnswer(faq.answer);
+    setCategory(faq.category ?? "");
+    setError(null);
+  };
+
+  const handleDeleteClick = async (faqId: number, question: string) => {
+    if (!window.confirm(`Delete FAQ: "${question}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    setDeleting(faqId);
+    setError(null);
+
+    try {
+      await apiFetch(`/faqs/${faqId}`, {
+        method: "DELETE",
+      });
+
+      // Remove from UI immediately
+      setFaqs(faqs.filter((faq) => faq.id !== faqId));
+      
+      // If we were editing this FAQ, reset the form
+      if (editingFaqId === faqId) {
+        resetForm();
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to delete FAQ");
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const resetForm = () => {
+    setEditingFaqId(null);
+    setQuestion("");
+    setAnswer("");
+    setCategory("");
+    setError(null);
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
@@ -44,18 +89,27 @@ export default function FAQPage() {
     setSaving(true);
 
     try {
-      await apiFetch("/faqs", {
-        method: "POST",
-        body: JSON.stringify({
-          question: question.trim(),
-          answer: answer.trim(),
-          category: category.trim() || null,
-        }),
-      });
+      if (editingFaqId) {
+        await apiFetch(`/faqs/${editingFaqId}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            question: question.trim(),
+            answer: answer.trim(),
+            category: category.trim() || null,
+          }),
+        });
+      } else {
+        await apiFetch("/faqs", {
+          method: "POST",
+          body: JSON.stringify({
+            question: question.trim(),
+            answer: answer.trim(),
+            category: category.trim() || null,
+          }),
+        });
+      }
 
-      setQuestion("");
-      setAnswer("");
-      setCategory("");
+      resetForm();
       await loadFaqs();
     } catch (err: any) {
       setError(err.message || "Failed to save FAQ");
@@ -116,6 +170,9 @@ export default function FAQPage() {
                         <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
                           Created
                         </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 bg-white">
@@ -133,6 +190,23 @@ export default function FAQPage() {
                           <td className="px-4 py-3 align-top text-slate-500">
                             {new Date(faq.created_at).toLocaleString()}
                           </td>
+                          <td className="px-4 py-3 align-top text-right space-x-3">
+                            <button
+                              type="button"
+                              onClick={() => handleEditClick(faq)}
+                              className="text-sm font-medium text-sky-600 hover:text-sky-800"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteClick(faq.id, faq.question)}
+                              disabled={deleting === faq.id}
+                              className="text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
+                            >
+                              {deleting === faq.id ? "Deleting..." : "Delete"}
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -144,9 +218,20 @@ export default function FAQPage() {
 
           <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 px-6 py-4">
-              <h2 className="text-lg font-semibold text-slate-900">
-                Add FAQ
-              </h2>
+              <div className="flex items-center justify-between gap-4">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {editingFaqId ? "Edit FAQ" : "Add FAQ"}
+                </h2>
+                {editingFaqId ? (
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700 hover:bg-slate-200"
+                  >
+                    Cancel edit
+                  </button>
+                ) : null}
+              </div>
             </div>
             <div className="px-6 py-4">
               <form className="space-y-4" onSubmit={handleSubmit}>
@@ -208,7 +293,7 @@ export default function FAQPage() {
                   disabled={saving}
                   className="inline-flex w-full items-center justify-center rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-sky-300"
                 >
-                  {saving ? "Saving..." : "Create FAQ"}
+                  {saving ? "Saving..." : editingFaqId ? "Save changes" : "Create FAQ"}
                 </button>
               </form>
             </div>
