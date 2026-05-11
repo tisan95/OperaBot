@@ -91,11 +91,10 @@ async def get_analytics(
 
 
 async def _check_qdrant_health() -> ServiceHealthStatus:
-    """Check Qdrant health status real."""
+    """Check Qdrant health status."""
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            # FIX: La ruta correcta para hacer ping a Qdrant es la raíz /
-            response = await client.get("http://localhost:6333/")
+            response = await client.get("http://localhost:6333/health")
             if response.status_code == 200:
                 return ServiceHealthStatus(
                     service="Qdrant",
@@ -113,42 +112,31 @@ async def _check_qdrant_health() -> ServiceHealthStatus:
 
 
 async def _check_ollama_health() -> ServiceHealthStatus:
-    """Check Ollama health status real."""
+    """Check Ollama health status."""
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.get("http://localhost:11434/api/tags")
             if response.status_code == 200:
                 data = response.json()
                 models = data.get("models", [])
-                
-                # FIX: Sacar los nombres reales de los modelos (ej. llama3.2, nomic-embed-text)
-                # Limpiamos el ":latest" para que quede más elegante visualmente
-                model_names = [m.get("name", "").replace(":latest", "") for m in models][:3]
-                
-                if model_names:
-                    models_str = " & ".join(model_names)
-                    if len(models) > 3:
-                        models_str += f" (+{len(models)-3} more)"
-                else:
-                    models_str = "No models loaded"
-
+                model_names = [m.get("name", "") for m in models]
                 return ServiceHealthStatus(
-                    service="Ollama Local AI",
+                    service="Ollama",
                     status="healthy",
-                    message=models_str
+                    message=f"Ready ({len(model_names)} models)"
                 )
     except Exception as e:
         pass
     
     return ServiceHealthStatus(
-        service="Ollama Local AI",
+        service="Ollama",
         status="unavailable",
         message="LLM service unreachable"
     )
 
 
 async def _check_postgres_health(db: AsyncSession) -> ServiceHealthStatus:
-    """Check PostgreSQL health status real."""
+    """Check PostgreSQL health status."""
     try:
         await db.scalar(select(func.count()).select_from(User))
         return ServiceHealthStatus(

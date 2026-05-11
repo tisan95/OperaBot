@@ -5,7 +5,6 @@ import httpx
 from typing import List, Dict, Any, Optional
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams, PointStruct
-from qdrant_client.http import models as qmodels
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +51,14 @@ class QdrantService:
             raise
 
     async def _get_embedding(self, text: str) -> List[float]:
-        """Get embedding from Ollama for a text."""
+        """Get embedding from Ollama for a text.
+
+        Args:
+            text: Text to embed
+
+        Returns:
+            Vector embedding as list of floats
+        """
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
@@ -72,50 +78,43 @@ class QdrantService:
             raise
 
     def search_knowledge(self, query: str, company_id: str, limit_per_collection: int = 3) -> Dict[str, List[Dict[str, Any]]]:
-        """Search across FAQs and documents for relevant knowledge."""
-        company_id_str = str(company_id)
-        
+        """Search across FAQs and documents for relevant knowledge.
+
+        Args:
+            query: Search query text
+            company_id: Company ID for filtering
+            limit_per_collection: Maximum results per collection
+
+        Returns:
+            Dict with 'faqs' and 'documents' keys containing search results
+        """
         try:
+            import asyncio
+            import signal
+            
             logger.info(f"[Qdrant] Starting knowledge search for query: '{query[:50]}...'")
             
-            # Request embedding synchronously
+            # Get embedding with timeout
             try:
-                with httpx.Client(timeout=30.0) as client:
-                    response = client.post(
-                        self.ollama_url,
-                        json={
-                            "model": self.embedding_model,
-                            "prompt": query
-                        }
-                    )
-                    result = response.json()
-                    query_vector = result.get("embedding")
-                    if not query_vector:
-                        raise ValueError("No embedding returned")
+                logger.info(f"[Qdrant] Requesting embedding from Ollama...")
+                query_vector = asyncio.run(self._get_embedding(query))
+                logger.info(f"[Qdrant] Embedding received: {len(query_vector)} dimensions")
             except Exception as e:
                 logger.error(f"[Qdrant] Embedding request failed: {type(e).__name__}: {e}")
                 return {"faqs": [], "documents": []}
 
             results = {"faqs": [], "documents": []}
 
-            # Definir el filtro estricto usando los modelos oficiales de Qdrant
-            strict_company_filter = qmodels.Filter(
-                must=[
-                    qmodels.FieldCondition(
-                        key="company_id",
-                        match=qmodels.MatchValue(value=company_id_str)
-                    )
-                ]
-            )
-
             # Search in FAQs collection
             try:
+                logger.info(f"[Qdrant] Searching FAQs collection...")
                 faq_results = self.client.search(
                     collection_name=self.collections["faqs"],
                     query_vector=query_vector,
-                    query_filter=strict_company_filter,
-                    limit=limit_per_collection,
-                    score_threshold=0.80  # <--- NOTA DE CORTE EXIGENTE PARA FAQS (80%)
+                    query_filter={
+                        "must": [{"key": "company_id", "match": {"value": company_id}}]
+                    },
+                    limit=limit_per_collection
                 )
                 for hit in faq_results:
                     results["faqs"].append({
@@ -123,17 +122,20 @@ class QdrantService:
                         "score": hit.score,
                         "payload": hit.payload
                     })
+                logger.info(f"[Qdrant] FAQ search returned {len(results['faqs'])} results")
             except Exception as e:
-                logger.error(f"[Qdrant] FAQ search error: {type(e).__name__}: {e}")
+                logger.error(f"[Qdrant] FAQ search error: {type(e).__name__}: {e}", exc_info=True)
 
             # Search in documents collection
             try:
+                logger.info(f"[Qdrant] Searching documents collection...")
                 doc_results = self.client.search(
                     collection_name=self.collections["documents"],
                     query_vector=query_vector,
-                    query_filter=strict_company_filter,
-                    limit=limit_per_collection,
-                    score_threshold=0.70  # <--- NOTA DE CORTE EXIGENTE PARA PDFs (70%)
+                    query_filter={
+                        "must": [{"key": "company_id", "match": {"value": company_id}}]
+                    },
+                    limit=limit_per_collection
                 )
                 for hit in doc_results:
                     results["documents"].append({
@@ -141,33 +143,50 @@ class QdrantService:
                         "score": hit.score,
                         "payload": hit.payload
                     })
+                logger.info(f"[Qdrant] Document search returned {len(results['documents'])} results")
             except Exception as e:
-                logger.error(f"[Qdrant] Document search error: {type(e).__name__}: {e}")
+                logger.error(f"[Qdrant] Document search error: {type(e).__name__}: {e}", exc_info=True)
 
-            logger.info(f"[Qdrant] Search completed: {len(results['faqs'])} FAQs + {len(results['documents'])} documents")
+            logger.info(f"[Qdrant] Knowledge search completed: {len(results['faqs'])} FAQs + {len(results['documents'])} documents")
             return results
 
         except Exception as e:
-            logger.error(f"[Qdrant] Unexpected error: {type(e).__name__}: {e}")
+            logger.error(f"[Qdrant] Unexpected error in knowledge search: {type(e).__name__}: {e}", exc_info=True)
             return {"faqs": [], "documents": []}
 
     async def store_document_chunks(self, document_id: int, company_id: str,
                             chunks: List[str], metadata: Dict[str, Any]) -> int:
-        """Store document chunks as vectors in Qdrant."""
+        """Store document chunks as vectors in Qdrant.
+
+        Args:
+            document_id: Database document ID
+            company_id: Company ID
+            chunks: List of text chunks
+            metadata: Additional metadata (filename, etc.)
+
+        Returns:
+            Number of vectors stored
+        """
         try:
             points = []
+
             for i, chunk in enumerate(chunks):
+                # Get embedding from Ollama
                 vector = await self._get_embedding(chunk)
+
+                # Create unique integer ID for Qdrant (hash of doc_id + chunk index)
+                # Qdrant requires either unsigned integer or UUID as point ID
                 import hashlib
                 unique_str = f"{document_id}_{i}"
                 unique_hash = int(hashlib.md5(unique_str.encode()).hexdigest(), 16) % (2**63 - 1)
 
+                # Create point with metadata
                 point = PointStruct(
                     id=unique_hash,
                     vector=vector,
                     payload={
                         "document_id": document_id,
-                        "company_id": str(company_id),
+                        "company_id": company_id,
                         "chunk_index": i,
                         "text": chunk,
                         "filename": metadata.get("filename", ""),
@@ -177,38 +196,46 @@ class QdrantService:
                 )
                 points.append(point)
 
+            # Upsert points to Qdrant
             self.client.upsert(
                 collection_name=self.collections["documents"],
                 points=points
             )
+
+            logger.info(f"Stored {len(points)} vectors for document {document_id}")
             return len(points)
+
         except Exception as e:
-            logger.error(f"Failed to store document chunks: {e}")
+            logger.error(f"Failed to store document chunks in Qdrant: {e}")
             raise
 
     def delete_document_vectors(self, document_id: int) -> bool:
-        """Delete all vectors for a document."""
+        """Delete all vectors for a document.
+
+        Args:
+            document_id: Database document ID
+
+        Returns:
+            True if successful
+        """
         try:
-            # FIX: Formato oficial de Qdrant para borrar usando filtros
-            filter_selector = qmodels.FilterSelector(
-                filter=qmodels.Filter(
-                    must=[
-                        qmodels.FieldCondition(
-                            key="document_id",
-                            match=qmodels.MatchValue(value=document_id)
-                        )
-                    ]
-                )
-            )
-            
+            # Delete points with matching document_id
             self.client.delete(
                 collection_name=self.collections["documents"],
-                points_selector=filter_selector
+                points_selector={
+                    "filter": {
+                        "must": [
+                            {"key": "document_id", "match": {"value": document_id}}
+                        ]
+                    }
+                }
             )
-            logger.info(f"[Qdrant] Successfully deleted vectors for document_id: {document_id}")
+
+            logger.info(f"Deleted vectors for document {document_id}")
             return True
+
         except Exception as e:
-            logger.error(f"[Qdrant] Failed to delete vectors for document_id {document_id}: {e}")
+            logger.error(f"Failed to delete document vectors: {e}")
             return False
 
 
