@@ -8,10 +8,17 @@ export const apiFetch = async (
 ): Promise<any> => {
   const url = `${API_URL}${endpoint}`;
 
+  // Solo agrega Content-Type si no es FormData
+  // FormData requiere que el navegador establezca multipart/form-data automáticamente
+  const isFormData = options?.body instanceof FormData;
+  const headers: Record<string, string> = !isFormData
+    ? { "Content-Type": "application/json" }
+    : {};
+
   const response = await fetch(url, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...headers,
       ...options?.headers,
     },
     credentials: "include", // Include HTTP-only cookies

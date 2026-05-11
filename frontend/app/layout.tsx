@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
 import { AuthProvider } from "@/components/Auth/AuthProvider";
 import "@/styles/globals.css";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "OperaBot - Operational Knowledge Assistant",

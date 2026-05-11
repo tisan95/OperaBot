@@ -1,102 +1,134 @@
-# OperaBot MVP - FEATURE-001 Setup & Running Guide
+# Setup Guide
 
-## 🎯 Overview
+Quick start for local development.
 
-This guide covers setting up and running **OperaBot FEATURE-001** (User Authentication & Login System) locally on your MacBook Air.
-
-**What's Implemented:**
-- Backend: FastAPI + PostgreSQL + JWT authentication
-- Frontend: Next.js + React + TypeScript + Tailwind CSS  
-- Security: bcrypt passwords + HTTP-only cookies + multi-tenant support
-- Testing: Unit + integration tests for auth service
-
-**Setup time:** ~5-10 minutes  
-**First test:** ~10 minutes after setup
-
----
-
-## 📋 Prerequisites Check
-
-Before you start, verify you have:
+## Prerequisites
 
 ```bash
-# PostgreSQL
-psql --version
-# Output should be: psql (PostgreSQL) 13+ or higher
-
-# Python
+# Check versions (required: Python 3.11+, Node 18+, PostgreSQL 14+)
 python3 --version
-# Output should be: Python 3.11+ or higher
+node --version
+psql --version
 
-# Node.js & npm
-node --version && npm --version
-# Output should be: v18+ and 9+
-```
-
-If any are missing, install via Homebrew:
-```bash
+# Install if missing (macOS):
 brew install postgresql@15 python@3.11 node
-```
-
----
-
-## 🗄️ Step 1: Database Setup (PostgreSQL)
-
-### 1.1 Ensure PostgreSQL is Running
-
-```bash
-# Check if running
-brew services list | grep postgresql
-
-# Start PostgreSQL
 brew services start postgresql@15
-
-# Verify it's running
-psql -c "SELECT version();"
 ```
 
-### 1.2 Create Development Database
+## Database Setup
 
 ```bash
-# Create database
+# Create development database
 createdb operabot_dev
 
-# Verify creation
-psql -l | grep operabot_dev
-
-# You should see:
-#  operabot_dev | postgres | UTF8 | C | C |
-```
-
-### 1.3 Test Database Connection
-
-```bash
-# Connect and verify
+# Verify connection
 psql -d operabot_dev -c "SELECT 1;"
-
-# Output: 
-#  ?column? 
-# ----------
-#        1
 ```
 
-**If connection fails:**
-- Check PostgreSQL is running: `brew services list`
-- Check database was created: `psql -l`
-- Check connection string format in backend/.env
-
----
-
-## 🔧 Step 2: Backend Setup (FastAPI)
-
-### 2.1 Navigate to Backend Directory
+## Backend Setup
 
 ```bash
-cd /path/to/OperaBot/backend
+cd backend
 
-# Verify you're in the right place
-ls -la | grep requirements.txt
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Create .env file
+cat > .env << EOF
+DATABASE_URL=postgresql://localhost:5432/operabot_dev
+LLM_API_URL=http://localhost:11434/api/generate
+LLM_TIMEOUT_SECONDS=300
+SECRET_KEY=your-secret-key-here-min-32-chars
+EOF
+
+# Run database migrations (if using Alembic)
+# python -m alembic upgrade head
+
+# Start backend server
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+Backend runs at http://localhost:8000  
+API docs available at http://localhost:8000/docs
+
+## Frontend Setup
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Create .env.local
+echo "NEXT_PUBLIC_API_URL=http://localhost:8000" > .env.local
+
+# Start development server
+npm run dev
+```
+
+Frontend runs at http://localhost:3000
+
+## External Services (Docker)
+
+```bash
+# From root directory, start PostgreSQL + Qdrant + Ollama
+docker compose up -d
+
+# Verify services
+docker ps
+
+# Check Ollama models are available
+curl http://localhost:11434/api/tags
+
+# Expected response includes:
+# llama3.2:1b (chat model)
+# nomic-embed-text (embeddings model)
+```
+
+## First Steps
+
+1. Register user: http://localhost:3000/register
+2. Login
+3. Create FAQ entries in /faq
+4. Upload PDF documents in /documents
+5. Chat with RAG: /chat
+
+## Troubleshooting
+
+**Backend fails to start:**
+- Check PostgreSQL is running: `brew services list`
+- Check .env DATABASE_URL is correct
+- Check port 8000 is available: `lsof -i :8000`
+
+**Frontend can't connect to backend:**
+- Check backend is running on :8000
+- Check NEXT_PUBLIC_API_URL in .env.local
+- Check CORS is enabled in backend (should be by default)
+
+**Ollama models not available:**
+```bash
+# Pull required models
+ollama pull llama3.2:1b
+ollama pull nomic-embed-text
+```
+
+**Qdrant not responding:**
+```bash
+# Restart Qdrant container
+docker compose restart qdrant
+# Should be accessible at http://localhost:6333/health
+```
+
+## Performance Notes
+
+- First chat response takes 10-30 seconds (Ollama inference)
+- Subsequent responses are faster due to caching
+- Vector embeddings are computed once per document chunk
+- Consider using GPU for faster inference (optional)
 
 ### 2.2 Create Virtual Environment
 

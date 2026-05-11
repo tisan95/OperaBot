@@ -1,7 +1,7 @@
 """Chat request and response schemas."""
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 
 
@@ -12,17 +12,17 @@ class ChatMessageRequest(BaseModel):
 
 
 class ChatMessageResponse(BaseModel):
-    """Chat message response."""
+    """Chat message response with RAG sources."""
 
     id: int
     user_message: str
     bot_message: str
-    is_fallback: bool
-    rating: Optional[int] = None
+    sources: List[Dict[str, str]] = Field(default_factory=list, description="Sources used for answer")
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0, description="Confidence score 0-1")
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ChatRatingRequest(BaseModel):
@@ -39,4 +39,4 @@ class ChatRatingResponse(BaseModel):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True

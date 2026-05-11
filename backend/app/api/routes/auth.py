@@ -83,6 +83,7 @@ async def login(
             httponly=True,
             secure=settings.APP_ENV == "production",
             samesite="lax",
+            path="/",
         )
 
         # Set access token as HTTP-only cookie
@@ -93,6 +94,7 @@ async def login(
             httponly=True,
             secure=settings.APP_ENV == "production",
             samesite="lax",
+            path="/",
         )
 
         return result
@@ -116,8 +118,8 @@ async def logout(response: Response) -> dict:
     Returns:
         Success message
     """
-    response.delete_cookie(key="access_token", secure=True, httponly=True)
-    response.delete_cookie(key="refresh_token", secure=True, httponly=True)
+    response.delete_cookie(key="access_token", secure=settings.APP_ENV == "production", httponly=True, path="/")
+    response.delete_cookie(key="refresh_token", secure=settings.APP_ENV == "production", httponly=True, path="/")
     return {"message": "Logged out successfully"}
 
 
@@ -223,6 +225,7 @@ async def refresh_token(request: Request, response: Response) -> dict:
         httponly=True,
         secure=settings.APP_ENV == "production",
         samesite="lax",
+        path="/",
     )
 
     return {"access_token": new_access_token}

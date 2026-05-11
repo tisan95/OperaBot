@@ -20,12 +20,16 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8000"
 
-    # LLM (Configuración base y nuevas variables para Ollama/Gemini)
-    LLM_PROVIDER: str = "gemini"
-    LLM_MODEL: str = "gemini-2.0-flash"
+    # LLM Configuration (Local Ollama - No Cloud APIs)
+    LLM_PROVIDER: str = "ollama"  # Local LLM provider
+    LLM_MODEL: str = "llama3.2:1b"  # Llama 3.2 1B model for local inference
+    LLM_API_URL: str = "http://localhost:11434/api/generate"  # Ollama local endpoint
+    LLM_TIMEOUT_SECONDS: int = 300  # Allow up to 5 minutes for LLM generation
+    
+    QDRANT_URL: str = "http://localhost:6333"
+
+    # Not used with Ollama (local LLM)
     LLM_API_KEY: str | None = None
-    LLM_API_URL: str = "http://localhost:11434/api/generate"
-    LLM_TIMEOUT_SECONDS: int = 60
     GEMINI_API_KEY: str | None = None
 
     # Configuración de Pydantic v2
