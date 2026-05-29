@@ -175,6 +175,7 @@ def _extract_sources(knowledge: Dict[str, List[Dict[str, Any]]]) -> List[Dict[st
             sources.append({
                 "type": "FAQ",
                 "title": question,
+                "name": question,
                 "score": f"{faq.get('score', 0):.2f}"
             })
     
@@ -185,6 +186,7 @@ def _extract_sources(knowledge: Dict[str, List[Dict[str, Any]]]) -> List[Dict[st
         sources.append({
             "type": "Document",
             "title": filename,
+            "name": filename,
             "score": f"{doc.get('score', 0):.2f}"
         })
     
@@ -223,7 +225,8 @@ async def _generate_with_ollama(message: str, context: str) -> str:
         system_prompt = """You are OperaBot, an AI assistant for operational knowledge.
 You help users find answers to common operational questions based on a knowledge base.
 Be concise, helpful, and professional. If you do not know something, say so.
-Always cite your sources when using information from the knowledge base."""
+Always cite your sources when using information from the knowledge base.
+Cuando uses información del contexto, indica la fuente al final de tu respuesta con el formato: [Fuente: nombre]"""
 
         full_prompt = f"""{system_prompt}
 
