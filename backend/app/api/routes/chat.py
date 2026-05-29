@@ -11,6 +11,7 @@ from app.api.dependencies import get_current_company_id, get_current_user_id
 from app.api.schemas.chat import ChatMessageRequest, ChatMessageResponse
 from app.db.database import get_db
 from app.models.chat_message import ChatMessage
+from app.models.ticket import Ticket, TicketPriority
 from app.services.llm_client import generate_answer_with_sources
 
 logger = logging.getLogger(__name__)
@@ -74,6 +75,18 @@ async def chat_message(
         )
 
         logger.info(f"Chat saved: {chat_entry.id}, sources: {len(bot_response.get('sources', []))}")
+
+        # Auto-create ticket if confidence is 0.0 (no answer found)
+        if bot_response.get("confidence", 0.0) == 0.0:
+            ticket = Ticket(
+                company_id=company_id,
+                user_id=user_id,
+                question=user_message,
+                priority=TicketPriority.MEDIUM,
+            )
+            db.add(ticket)
+            await db.commit()
+            logger.info(f"Auto-created ticket from chat message {chat_entry.id}")
 
         return ChatMessageResponse(
             id=chat_entry.id,
