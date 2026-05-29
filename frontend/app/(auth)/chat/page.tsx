@@ -6,6 +6,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 interface Source {
   type: string;
   title: string;
+  name?: string;
   score: string;
 }
 
@@ -188,7 +189,7 @@ export default function ChatPage() {
                               </span>
                               <div>
                                 <p className="font-semibold text-slate-700 truncate">
-                                  {source.title}
+                                  {source.name || source.title}
                                 </p>
                                 <p className="text-slate-500">
                                   Score: {source.score}
