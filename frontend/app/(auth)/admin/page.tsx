@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useAuthContext } from "@/components/Auth/AuthProvider";
 import { useRouter } from "next/navigation";
 
@@ -33,10 +34,15 @@ export default function AdminPage() {
           <p className="text-gray-600 mt-2">View usage and performance metrics</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900">Kanban</h3>
-          <p className="text-gray-600 mt-2">Create tasks in external tools</p>
-        </div>
+        <Link
+          href="/admin/tickets"
+          className="group block bg-white rounded-lg shadow p-6 transition hover:-translate-y-0.5 hover:border-slate-300"
+        >
+          <h3 className="text-lg font-semibold text-gray-900 group-hover:text-slate-900">Kanban</h3>
+          <p className="text-gray-600 mt-2 group-hover:text-slate-700">
+            Ver el tablero de tickets por estado y prioridad
+          </p>
+        </Link>
       </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
