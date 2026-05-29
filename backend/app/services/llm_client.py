@@ -9,6 +9,24 @@ from app.models.faq import FAQ
 
 logger = logging.getLogger(__name__)
 
+# RAG configuration
+SIMILARITY_THRESHOLD = 0.75
+
+
+def _filter_by_similarity(knowledge: Dict[str, List[Dict[str, Any]]]) -> Dict[str, List[Dict[str, Any]]]:
+    """Filter knowledge results by similarity threshold.
+    
+    Args:
+        knowledge: Search results from Qdrant with 'faqs' and 'documents' keys.
+    
+    Returns:
+        Filtered knowledge keeping only results with score >= SIMILARITY_THRESHOLD.
+    """
+    return {
+        "faqs": [faq for faq in knowledge.get("faqs", []) if faq.get("score", 0) >= SIMILARITY_THRESHOLD],
+        "documents": [doc for doc in knowledge.get("documents", []) if doc.get("score", 0) >= SIMILARITY_THRESHOLD]
+    }
+
 
 async def generate_answer_with_sources(message: str, company_id: str) -> Dict[str, Any]:
     """Generate an answer using RAG with sources from FAQs and Documents.
@@ -41,6 +59,29 @@ async def generate_answer_with_sources(message: str, company_id: str) -> Dict[st
             logger.error(f"[RAG] Qdrant search failed: {type(e).__name__}: {e}", exc_info=True)
             logger.warning(f"[RAG] Continuing with empty knowledge base (no FAQs/documents).")
             knowledge = {"faqs": [], "documents": []}
+        
+        # Filter by similarity threshold
+        try:
+            logger.info(f"[RAG] Filtering results by similarity threshold (>= {SIMILARITY_THRESHOLD})")
+            knowledge = _filter_by_similarity(knowledge)
+            total_results = len(knowledge.get('faqs', [])) + len(knowledge.get('documents', []))
+            logger.info(f"[RAG] After filtering: {len(knowledge.get('faqs', []))} FAQs + {len(knowledge.get('documents', []))} documents")
+            
+            # Check if any results remain after filtering
+            if total_results == 0:
+                logger.warning(f"[RAG] No results above similarity threshold {SIMILARITY_THRESHOLD}")
+                return {
+                    "answer": "No tengo información suficiente para responder esta pregunta con confianza.",
+                    "sources": [],
+                    "confidence": 0.0
+                }
+        except Exception as e:
+            logger.error(f"[RAG] Similarity filtering failed: {type(e).__name__}: {e}", exc_info=True)
+            return {
+                "answer": "No tengo información suficiente para responder esta pregunta con confianza.",
+                "sources": [],
+                "confidence": 0.0
+            }
         
         # Build context from FAQs and documents
         try:
