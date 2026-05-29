@@ -31,6 +31,7 @@ async def _save_chat_message(
         user_id=user_id,
         user_message=user_message,
         bot_message=bot_response.get("answer", ""),
+        sources=bot_response.get("sources", []),
         confidence=bot_response.get("confidence", 0.0),
         is_fallback=False,  # RAG responses are not fallback
     )
@@ -124,8 +125,8 @@ async def get_chat_history(
                 id=msg.id,
                 user_message=msg.user_message,
                 bot_message=msg.bot_message,
-                sources=[],  # History doesn't include sources for now
-                confidence=0.0,
+                sources=msg.sources or [],
+                confidence=msg.confidence or 0.0,
                 created_at=msg.created_at,
             )
             for msg in messages

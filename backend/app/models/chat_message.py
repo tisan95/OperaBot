@@ -1,6 +1,6 @@
 """Chat message model."""
 
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, Float, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.db.database import Base, GUID
@@ -16,6 +16,7 @@ class ChatMessage(Base):
     user_id = Column(GUID(), ForeignKey("users.id"), nullable=False, index=True)
     user_message = Column(Text, nullable=False)
     bot_message = Column(Text, nullable=False)
+    sources = Column(JSON, default=list, nullable=False)
     is_fallback = Column(Boolean, default=False, nullable=False)
     confidence = Column(Float, default=0.0, nullable=False)  # Confidence score 0.0-1.0
     rating = Column(Integer, nullable=True)
