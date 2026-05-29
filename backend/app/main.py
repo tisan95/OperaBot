@@ -13,10 +13,12 @@ from app.api.routes.chat import router as chat_router
 from app.api.routes.admin import router as admin_router
 from app.api.routes.documents import router as documents_router
 from app.api.routes.users import router as users_router  # <--- Nuevo import
+from app.api.routes.tickets import router as tickets_router
 import app.models.faq
 import app.models.chat_message
 import app.models.document
 import app.models.user  # <--- Aseguramos que el modelo de usuario esté cargado
+import app.models.ticket
 
 
 # Setup logging
@@ -56,6 +58,7 @@ app.include_router(faq_router)
 app.include_router(chat_router)
 app.include_router(admin_router)
 app.include_router(documents_router, prefix="/documents", tags=["documents"])
+app.include_router(tickets_router)
 app.include_router(users_router) # <--- Registro de la nueva ruta de gestión de usuarios
 
 
