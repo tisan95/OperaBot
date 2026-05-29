@@ -2,7 +2,7 @@
 
 from enum import Enum as PyEnum
 from datetime import datetime
-from sqlalchemy import Column, Text, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, Integer, Text, DateTime, ForeignKey, Enum
 from sqlalchemy.orm import relationship
 from app.db.database import Base, GUID
 
