@@ -94,7 +94,7 @@ async def _check_qdrant_health() -> ServiceHealthStatus:
     """Check Qdrant health status."""
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get("http://localhost:6333/health")
+            response = await client.get("http://localhost:6333/healthz")
             if response.status_code == 200:
                 return ServiceHealthStatus(
                     service="Qdrant",
