@@ -32,7 +32,14 @@ class Ticket(Base):
     company_id = Column(GUID(), ForeignKey("companies.id"), nullable=False, index=True)
     user_id = Column(GUID(), ForeignKey("users.id"), nullable=False, index=True)
     question = Column(Text, nullable=False)
-    status = Column(Enum(TicketStatus), default=TicketStatus.OPEN, nullable=False)
+    status = Column(
+        Enum(
+            TicketStatus,
+            values_callable=lambda x: [e.value.lower() for e in x],
+        ),
+        default=TicketStatus.OPEN,
+        nullable=False,
+    )
     priority = Column(Enum(TicketPriority), default=TicketPriority.MEDIUM, nullable=False)
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
