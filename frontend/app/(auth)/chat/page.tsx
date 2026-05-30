@@ -18,6 +18,7 @@ interface ChatMessage {
   confidence: number;
   created_at: string;
   isLoading?: boolean;
+  isRateLimit?: boolean;
 }
 
 export default function ChatPage() {
@@ -95,12 +96,23 @@ export default function ChatPage() {
             : msg
         )
       );
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to send message"
-      );
-      // Remove the loading message
-      setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
+    } catch (err: any) {
+      const isRateLimit = err?.status === 429;
+      const message = err instanceof Error ? err.message : "Failed to send message";
+
+      if (isRateLimit) {
+        // Show rate limit as an inline bot bubble so it feels like part of the conversation
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === tempId
+              ? { ...msg, bot_message: message, isLoading: false, isRateLimit: true }
+              : msg
+          )
+        );
+      } else {
+        setError(message);
+        setMessages((prev) => prev.filter((msg) => msg.id !== tempId));
+      }
     } finally {
       setLoading(false);
     }
@@ -150,7 +162,11 @@ export default function ChatPage() {
 
             {/* Bot Response with Sources */}
             <div className="flex justify-start">
-              <div className="max-w-2xl bg-white border border-slate-200 rounded-lg shadow-sm p-4 space-y-3">
+              <div className={`max-w-2xl rounded-lg shadow-sm p-4 space-y-3 ${
+                msg.isRateLimit
+                  ? "bg-amber-50 border border-amber-200"
+                  : "bg-white border border-slate-200"
+              }`}>
                 {msg.isLoading ? (
                   <div className="flex items-center space-x-2">
                     <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
@@ -158,6 +174,8 @@ export default function ChatPage() {
                     <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-200"></div>
                     <span className="text-sm text-slate-600 ml-2">Thinking...</span>
                   </div>
+                ) : msg.isRateLimit ? (
+                  <p className="text-sm text-amber-800 font-medium">⏱️ {msg.bot_message}</p>
                 ) : (
                   <>
                     {/* Answer */}

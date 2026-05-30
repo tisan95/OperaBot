@@ -1,12 +1,14 @@
 """FastAPI application entry point."""
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.utils.logging import setup_logging
 from app.middleware import setup_middleware
 from app.db.database import init_db, close_db
+from app.api.limiter import limiter
 from app.api.routes import auth
 from app.api.routes.faq import router as faq_router
 from app.api.routes.chat import router as chat_router
@@ -49,8 +51,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Rate limiter state
+app.state.limiter = limiter
+
 # Setup middleware
 setup_middleware(app)
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    return JSONResponse(
+        status_code=429,
+        content={
+            "detail": "Has superado el límite de mensajes por minuto. Espera unos segundos e inténtalo de nuevo."
+        },
+    )
 
 # Include routers
 app.include_router(auth.router)

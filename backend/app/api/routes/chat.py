@@ -1,13 +1,14 @@
 """Chat endpoint with RAG (Retrieval Augmented Generation)."""
 
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 from typing import List, Dict, Any
 
 from app.api.dependencies import get_current_company_id, get_current_user_id
+from app.api.limiter import limiter
 from app.api.schemas.chat import ChatMessageRequest, ChatMessageResponse
 from app.db.database import get_db
 from app.models.chat_message import ChatMessage
@@ -43,16 +44,18 @@ async def _save_chat_message(
 
 
 @router.post("/messages", response_model=ChatMessageResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("20/minute")
 async def chat_message(
-    request: ChatMessageRequest,
+    request: Request,
+    body: ChatMessageRequest,
     user_id: str = Depends(get_current_user_id),
     company_id: str = Depends(get_current_company_id),
     db: AsyncSession = Depends(get_db),
 ) -> ChatMessageResponse:
     """Send a chat message and receive an AI-generated response with sources."""
-    logger.info(f"POST /chat/messages - User {user_id}, Message: '{request.message[:50]}...'")
+    logger.info(f"POST /chat/messages - User {user_id}, Message: '{body.message[:50]}...'")
 
-    user_message = request.message.strip()
+    user_message = body.message.strip()
     if not user_message:
         logger.warning(f"User {user_id} sent empty message")
         raise HTTPException(

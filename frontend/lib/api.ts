@@ -27,7 +27,9 @@ export const apiFetch = async (
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.detail || data.message || "API request failed");
+    const err = new Error(data.detail || data.message || "API request failed") as Error & { status: number };
+    err.status = response.status;
+    throw err;
   }
 
   return data;
