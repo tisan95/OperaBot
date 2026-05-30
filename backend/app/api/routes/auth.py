@@ -81,7 +81,7 @@ async def login(
             value=result["refresh_token"],
             max_age=7 * 24 * 60 * 60,  # 7 days
             httponly=True,
-            secure=False,
+            secure=settings.APP_ENV == "production",
             samesite="lax",
             path="/",
         )
@@ -92,7 +92,7 @@ async def login(
             value=result["access_token"],
             max_age=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             httponly=True,
-            secure=False,
+            secure=settings.APP_ENV == "production",
             samesite="lax",
             path="/",
         )
