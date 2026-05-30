@@ -77,7 +77,7 @@ class QdrantService:
             logger.error(f"Failed to get embedding from Ollama: {e}")
             raise
 
-    def search_knowledge(self, query: str, company_id: str, limit_per_collection: int = 3) -> Dict[str, List[Dict[str, Any]]]:
+    async def search_knowledge(self, query: str, company_id: str, limit_per_collection: int = 3) -> Dict[str, List[Dict[str, Any]]]:
         """Search across FAQs and documents for relevant knowledge.
 
         Args:
@@ -89,15 +89,12 @@ class QdrantService:
             Dict with 'faqs' and 'documents' keys containing search results
         """
         try:
-            import asyncio
-            import signal
-            
             logger.info(f"[Qdrant] Starting knowledge search for query: '{query[:50]}...'")
             
             # Get embedding with timeout
             try:
                 logger.info(f"[Qdrant] Requesting embedding from Ollama...")
-                query_vector = asyncio.run(self._get_embedding(query))
+                query_vector = await self._get_embedding(query)
                 logger.info(f"[Qdrant] Embedding received: {len(query_vector)} dimensions")
             except Exception as e:
                 logger.error(f"[Qdrant] Embedding request failed: {type(e).__name__}: {e}")

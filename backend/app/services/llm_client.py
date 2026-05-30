@@ -53,7 +53,7 @@ async def generate_answer_with_sources(message: str, company_id: str) -> Dict[st
         
         try:
             logger.info(f"[RAG] Searching knowledge base for company {company_id}")
-            knowledge = qdrant_service.search_knowledge(message, company_id, limit_per_collection=3)
+            knowledge = await qdrant_service.search_knowledge(message, company_id, limit_per_collection=3)
             logger.info(f"[RAG] Knowledge search returned {len(knowledge.get('faqs', []))} FAQs + {len(knowledge.get('documents', []))} documents")
         except Exception as e:
             logger.error(f"[RAG] Qdrant search failed: {type(e).__name__}: {e}", exc_info=True)
