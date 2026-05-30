@@ -17,16 +17,17 @@ depends_on = None
 
 
 def upgrade() -> None:
+    userstatus = sa.Enum("pending", "active", name="userstatus")
+    userstatus.create(op.get_bind(), checkfirst=True)
     op.add_column(
         "users",
         sa.Column(
             "status",
-            sa.Enum("pending", "active", name="userstatus"),
+            userstatus,
             nullable=False,
             server_default="active",
         ),
     )
-    # Existing users should remain active after migration; new users can use the ORM default.
     op.alter_column("users", "status", server_default=None)
 
 

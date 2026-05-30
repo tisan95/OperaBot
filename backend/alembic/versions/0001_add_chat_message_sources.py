@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = "0001_add_chat_message_sources"
-down_revision = None
+down_revision = "0000_initial"
 branch_labels = None
 depends_on = None
 

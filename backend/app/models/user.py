@@ -32,7 +32,7 @@ class User(Base):
     company_id = Column(GUID(), ForeignKey("companies.id"), nullable=False)
     email = Column(String(255), nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
-    role = Column(Enum(UserRole), default=UserRole.USER, nullable=False)
+    role = Column(Enum(UserRole, values_callable=lambda x: [e.value.lower() for e in x]), default=UserRole.USER, nullable=False)
     status = Column(
         Enum(UserStatus, values_callable=lambda x: [e.value for e in x]),
         default=UserStatus.PENDING,
