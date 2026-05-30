@@ -64,8 +64,26 @@ async def chat_message(
         # Generate answer with RAG (searches FAQs + Documents)
         logger.info(f"Generating RAG answer for company {company_id}")
         bot_response = await generate_answer_with_sources(user_message, company_id)
-        
-        # Save chat message
+
+        # Auto-create ticket if confidence is 0.0 (no answer found)
+        # Do this before saving the chat so the escalation note is persisted
+        if bot_response.get("confidence", 0.0) == 0.0:
+            ticket = Ticket(
+                company_id=company_id,
+                user_id=user_id,
+                question=user_message,
+                priority=TicketPriority.MEDIUM,
+            )
+            db.add(ticket)
+            await db.flush()
+            await db.refresh(ticket)
+            bot_response["answer"] = (
+                bot_response.get("answer", "")
+                + f"\n\nHe escalado tu consulta. Ticket #{ticket.id} creado."
+            )
+            logger.info(f"Auto-created ticket #{ticket.id} from chat message (confidence=0.0)")
+
+        # Save chat message (with escalation note already in answer if applicable)
         chat_entry = await _save_chat_message(
             db=db,
             company_id=company_id,
@@ -75,18 +93,6 @@ async def chat_message(
         )
 
         logger.info(f"Chat saved: {chat_entry.id}, sources: {len(bot_response.get('sources', []))}")
-
-        # Auto-create ticket if confidence is 0.0 (no answer found)
-        if bot_response.get("confidence", 0.0) == 0.0:
-            ticket = Ticket(
-                company_id=company_id,
-                user_id=user_id,
-                question=user_message,
-                priority=TicketPriority.MEDIUM,
-            )
-            db.add(ticket)
-            await db.commit()
-            logger.info(f"Auto-created ticket from chat message {chat_entry.id}")
 
         return ChatMessageResponse(
             id=chat_entry.id,
