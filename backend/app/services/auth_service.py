@@ -2,6 +2,7 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from fastapi import HTTPException, status
 from app.models.user import User, UserRole, UserStatus
 from app.models.company import Company
 from app.utils.security import hash_password, verify_password, create_tokens
@@ -134,7 +135,10 @@ class AuthService:
             raise ValueError("User account is disabled")
 
         if user.status != UserStatus.ACTIVE:
-            raise ValueError("User pendiente de aprobación")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Tu cuenta está pendiente de aprobación por un administrador.",
+            )
 
         # Generate tokens
         tokens = create_tokens(str(user.id), str(company.id))
