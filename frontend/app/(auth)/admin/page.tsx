@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useAuthContext } from "@/components/Auth/AuthProvider";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function AdminPage() {

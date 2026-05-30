@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api";
 import { useAuthContext } from "@/components/Auth/AuthProvider";
+import { apiFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 interface Ticket {
   id: number;
