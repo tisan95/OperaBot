@@ -1,8 +1,8 @@
 "use client";
 
+import { useAuthContext } from "@/components/Auth/AuthProvider";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuthContext } from "@/components/Auth/AuthProvider";
 
 const navigation = [
   { name: "Chat", href: "/chat", icon: "💬" },
