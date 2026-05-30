@@ -40,7 +40,14 @@ class Ticket(Base):
         default=TicketStatus.OPEN,
         nullable=False,
     )
-    priority = Column(Enum(TicketPriority), default=TicketPriority.MEDIUM, nullable=False)
+    priority = Column(
+        Enum(
+            TicketPriority,
+            values_callable=lambda x: [e.value.lower() for e in x],
+        ),
+        default=TicketPriority.MEDIUM,
+        nullable=False,
+    )
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
