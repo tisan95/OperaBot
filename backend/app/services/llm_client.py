@@ -10,7 +10,7 @@ from app.models.faq import FAQ
 logger = logging.getLogger(__name__)
 
 # RAG configuration
-SIMILARITY_THRESHOLD = 0.75
+SIMILARITY_THRESHOLD = 0.60
 
 
 def _filter_by_similarity(knowledge: Dict[str, List[Dict[str, Any]]]) -> Dict[str, List[Dict[str, Any]]]:
@@ -190,7 +190,16 @@ def _extract_sources(knowledge: Dict[str, List[Dict[str, Any]]]) -> List[Dict[st
             "score": f"{doc.get('score', 0):.2f}"
         })
     
-    return sources
+    deduped_sources: Dict[str, Dict[str, str]] = {}
+    for source in sources:
+        name = source.get("name")
+        if not name:
+            continue
+        existing = deduped_sources.get(name)
+        if not existing or float(source["score"]) > float(existing["score"]):
+            deduped_sources[name] = source
+
+    return list(deduped_sources.values())
 
 
 def _calculate_confidence(knowledge: Dict[str, List[Dict[str, Any]]]) -> float:
