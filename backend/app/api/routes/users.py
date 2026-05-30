@@ -8,9 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from passlib.context import CryptContext
 
 from app.db.database import get_db
-from app.models.user import User, UserRole
+from app.models.user import User, UserRole, UserStatus
 from app.api.dependencies import get_current_user_id, get_current_company_id
-from app.api.schemas.user import UserResponse, UserCreate, UserUpdate
+from app.api.schemas.user import UserResponse, UserCreate, UserUpdate, UserApproveRequest
 
 router = APIRouter(prefix="/users", tags=["users"])
 # Configuramos el hash de contraseñas igual que en auth_service
@@ -64,13 +64,43 @@ async def create_company_user(
         email=user_in.email,
         password_hash=pwd_context.hash(user_in.password),
         role=user_in.role,
-        is_active=user_in.is_active
+        status=user_in.status or UserStatus.PENDING,
+        is_active=user_in.is_active,
     )
     
     db.add(new_user)
     await db.commit()
     await db.refresh(new_user)
     return new_user
+
+@router.patch("/{target_id}/approve", response_model=UserResponse)
+async def approve_company_user(
+    target_id: UUID,
+    approval: UserApproveRequest,
+    user_id: str = Depends(get_current_user_id),
+    company_id: str = Depends(get_current_company_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Approve a pending user and assign role."""
+    await _check_admin_permissions(user_id, company_id, db)
+
+    result = await db.execute(
+        select(User).where(User.id == target_id, User.company_id == company_id)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    if user.status == UserStatus.ACTIVE:
+        raise HTTPException(status_code=400, detail="Usuario ya está aprobado")
+
+    user.status = UserStatus.ACTIVE
+    user.role = approval.role
+    user.is_active = True
+
+    await db.commit()
+    await db.refresh(user)
+    return user
 
 @router.patch("/{target_id}", response_model=UserResponse)
 async def update_company_user(
@@ -98,6 +128,7 @@ async def update_company_user(
     if user_in.email: user.email = user_in.email
     if user_in.password: user.password_hash = pwd_context.hash(user_in.password)
     if user_in.role: user.role = user_in.role
+    if user_in.status is not None: user.status = user_in.status
     if user_in.is_active is not None: user.is_active = user_in.is_active
 
     await db.commit()

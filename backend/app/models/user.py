@@ -16,6 +16,13 @@ class UserRole(str, PyEnum):
     USER = "user"
 
 
+class UserStatus(str, PyEnum):
+    """User lifecycle status."""
+
+    PENDING = "pending"
+    ACTIVE = "active"
+
+
 class User(Base):
     """User model with multi-tenant isolation."""
 
@@ -26,6 +33,11 @@ class User(Base):
     email = Column(String(255), nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     role = Column(Enum(UserRole), default=UserRole.USER, nullable=False)
+    status = Column(
+        Enum(UserStatus, values_callable=lambda x: [e.value for e in x]),
+        default=UserStatus.PENDING,
+        nullable=False,
+    )
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

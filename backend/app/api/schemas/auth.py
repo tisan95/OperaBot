@@ -27,6 +27,7 @@ class UserResponse(BaseModel):
     email: str
     role: str
     company_id: str
+    status: Optional[str] = None
 
     class Config:
         from_attributes = True

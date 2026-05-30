@@ -2,7 +2,7 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.models.user import User, UserRole
+from app.models.user import User, UserRole, UserStatus
 from app.models.company import Company
 from app.utils.security import hash_password, verify_password, create_tokens
 from app.db.repositories.user_repo import UserRepository
@@ -63,9 +63,11 @@ class AuthService:
         if existing_user:
             raise ValueError("Email already registered for this company")
 
-        # Determine role: first user is admin, others are users
+        # Determine role and approval status.
         existing_users = await self.user_repo.get_all_by_company(company.id)
-        role = UserRole.ADMIN if len(existing_users) == 0 else UserRole.USER
+        is_initial_admin = len(existing_users) == 0
+        role = UserRole.ADMIN if is_initial_admin else UserRole.USER
+        status = UserStatus.ACTIVE if is_initial_admin else UserStatus.PENDING
 
         # Create user
         user = User(
@@ -73,6 +75,7 @@ class AuthService:
             email=email,
             password_hash=hash_password(password),
             role=role,
+            status=status,
         )
         self.db.add(user)
         await self.db.commit()
@@ -86,6 +89,7 @@ class AuthService:
                 "id": str(user.id),
                 "email": user.email,
                 "role": user.role.value,
+                "status": user.status.value,
                 "company_id": str(company.id),
             },
             "company": {"id": str(company.id), "name": company.name},
@@ -129,6 +133,9 @@ class AuthService:
         if not user.is_active:
             raise ValueError("User account is disabled")
 
+        if user.status != UserStatus.ACTIVE:
+            raise ValueError("User pendiente de aprobación")
+
         # Generate tokens
         tokens = create_tokens(str(user.id), str(company.id))
 
@@ -137,6 +144,7 @@ class AuthService:
                 "id": str(user.id),
                 "email": user.email,
                 "role": user.role.value,
+                "status": user.status.value,
                 "company_id": str(company.id),
             },
             "company": {"id": str(company.id), "name": company.name},

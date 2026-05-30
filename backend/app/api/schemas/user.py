@@ -4,12 +4,13 @@ from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 from uuid import UUID
 from datetime import datetime
-from app.models.user import UserRole
+from app.models.user import UserRole, UserStatus
 
 class UserBase(BaseModel):
     """Campos base que comparten todas las peticiones de usuario."""
     email: EmailStr
     role: UserRole = UserRole.USER
+    status: UserStatus = UserStatus.PENDING
     is_active: bool = True
 
 class UserCreate(UserBase):
@@ -21,7 +22,12 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     password: Optional[str] = Field(None, min_length=6)
     role: Optional[UserRole] = None
+    status: Optional[UserStatus] = None
     is_active: Optional[bool] = None
+
+class UserApproveRequest(BaseModel):
+    """Esquema para aprobar usuarios pendientes con rol."""
+    role: UserRole = UserRole.USER
 
 class UserResponse(UserBase):
     """Lo que el API devuelve al Frontend (filtramos la contraseña)."""
