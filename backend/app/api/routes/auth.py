@@ -81,7 +81,7 @@ async def login(
             value=result["refresh_token"],
             max_age=7 * 24 * 60 * 60,  # 7 days
             httponly=True,
-            secure=settings.APP_ENV == "production",
+            secure=False,
             samesite="lax",
             path="/",
         )
@@ -92,7 +92,7 @@ async def login(
             value=result["access_token"],
             max_age=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             httponly=True,
-            secure=settings.APP_ENV == "production",
+            secure=False,
             samesite="lax",
             path="/",
         )
@@ -156,6 +156,7 @@ async def get_current_user(
                 "id": str(user.id),
                 "email": user.email,
                 "role": user.role.value,
+                "status": user.status.value,
                 "company_id": str(user.company_id),
             },
             "company": {
