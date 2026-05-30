@@ -1,8 +1,12 @@
 "use client";
 import { apiFetch } from "@/lib/api";
+import { useAuthContext } from "@/components/Auth/AuthProvider";
+import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 
 export default function DocumentsPage() {
+  const { user } = useAuthContext();
+  const router = useRouter();
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -10,7 +14,13 @@ export default function DocumentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
+  useEffect(() => {
+    if (user && user.role !== "admin") router.push("/dashboard");
+  }, [user, router]);
+
   useEffect(() => { loadDocuments(); }, []);
+
+  if (user && user.role !== "admin") return null;
 
   const loadDocuments = async () => {
     setLoading(true);

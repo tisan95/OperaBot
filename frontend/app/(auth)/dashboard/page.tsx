@@ -258,32 +258,6 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* System Status Banner */}
-      {user?.role !== "admin" && (
-        <div className="card card-padding bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100">
-          <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <span className="text-xl">✨</span> Powered by Local AI
-          </h3>
-          <ul className="space-y-2 text-sm text-slate-700">
-            <li className="flex items-start gap-3">
-              <span className="text-indigo-600 font-bold mt-0.5">✓</span>
-              <span>100% local inference (Ollama)</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="text-indigo-600 font-bold mt-0.5">✓</span>
-              <span>Vector search with Qdrant</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="text-indigo-600 font-bold mt-0.5">✓</span>
-              <span>Document-enhanced RAG responses</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="text-indigo-600 font-bold mt-0.5">✓</span>
-              <span>Secure multi-tenant architecture</span>
-            </li>
-          </ul>
-        </div>
-      )}
     </div>
   );
 }
