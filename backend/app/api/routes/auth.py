@@ -20,12 +20,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
 async def register(
-    request: RegisterRequest, db: AsyncSession = Depends(get_db)
+    request: RegisterRequest, response: Response, db: AsyncSession = Depends(get_db)
 ) -> dict:
     """Register a new user.
 
     Args:
         request: Registration data
+        response: FastAPI response (to set cookies)
         db: Database session
 
     Returns:
@@ -40,7 +41,25 @@ async def register(
             request.email, request.password, request.company_name
         )
 
-        # Return response (tokens will be set as HTTP-only cookies separately)
+        response.set_cookie(
+            key="access_token",
+            value=result["access_token"],
+            max_age=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            httponly=True,
+            secure=False,
+            samesite="lax",
+            path="/",
+        )
+        response.set_cookie(
+            key="refresh_token",
+            value=result["refresh_token"],
+            max_age=7 * 24 * 60 * 60,
+            httponly=True,
+            secure=False,
+            samesite="lax",
+            path="/",
+        )
+
         return result
 
     except ValueError as e:
