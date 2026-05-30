@@ -8,7 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_company_id, get_current_user_id
+from app.api.dependencies import get_current_company_id, get_current_user_id, require_admin
+from app.models.user import User as UserModel
 from app.api.schemas.ticket import (
     TicketCreateRequest,
     TicketResponse,
@@ -64,9 +65,10 @@ async def create_ticket(
 @router.get("/", response_model=List[TicketResponse])
 async def list_tickets(
     status: Optional[TicketStatus] = None,
-    company_id: str = Depends(get_current_company_id),
+    current_user: UserModel = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ) -> List[TicketResponse]:
+    company_id = str(current_user.company_id)
     """List tickets for the current company, optional status filter."""
     query = select(Ticket).where(Ticket.company_id == company_id)
     if status:
@@ -94,9 +96,10 @@ async def list_tickets(
 async def update_ticket(
     ticket_id: int,
     request: TicketUpdateRequest,
-    company_id: str = Depends(get_current_company_id),
+    current_user: UserModel = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ) -> TicketResponse:
+    company_id = str(current_user.company_id)
     """Update ticket status, priority, or notes."""
     result = await db.execute(
         select(Ticket).where(Ticket.id == ticket_id, Ticket.company_id == company_id)

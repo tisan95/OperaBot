@@ -34,7 +34,7 @@ export default function AdminTicketsPage() {
   const [updatingId, setUpdatingId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (user && user.role !== "admin") {
+    if (user && user.role === "user") {
       router.push("/dashboard");
     }
   }, [user, router]);
@@ -133,7 +133,7 @@ export default function AdminTicketsPage() {
     );
   };
 
-  if (user && user.role !== "admin") return null;
+  if (user && user.role === "user") return null;
 
   return (
     <div className="space-y-6 p-6">

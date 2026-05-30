@@ -9,7 +9,8 @@ from app.db.database import get_db
 from app.models.document import Document
 from app.services.document_service import document_service
 from app.services.qdrant_service import qdrant_service
-from app.api.dependencies import get_current_company_id
+from app.api.dependencies import get_current_company_id, require_admin
+from app.models.user import User
 from app.api.schemas.document import DocumentUploadResponse, DocumentList
 
 logger = logging.getLogger(__name__)
@@ -20,8 +21,9 @@ router = APIRouter()
 async def upload_document(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    company_id: str = Depends(get_current_company_id)
+    current_user: User = Depends(require_admin),
 ) -> DocumentUploadResponse:
+    company_id = str(current_user.company_id)
     """Upload and process a PDF document."""
     try:
         # Process the upload
@@ -51,8 +53,9 @@ async def upload_document(
 @router.get("/", response_model=List[DocumentList])
 async def get_documents(
     db: AsyncSession = Depends(get_db),
-    company_id: str = Depends(get_current_company_id)
+    current_user: User = Depends(require_admin),
 ) -> List[DocumentList]:
+    company_id = str(current_user.company_id)
     """Get all documents for the current company."""
     try:
         documents = await document_service.get_company_documents(company_id, db)
@@ -78,8 +81,9 @@ async def get_documents(
 async def delete_document(
     document_id: int,
     db: AsyncSession = Depends(get_db),
-    company_id: str = Depends(get_current_company_id)
+    current_user: User = Depends(require_admin),
 ) -> dict:
+    company_id = str(current_user.company_id)
     """Delete a document and its associated vectors."""
     try:
         # 1. Delete vectors from Qdrant first

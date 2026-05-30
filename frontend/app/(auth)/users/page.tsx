@@ -24,9 +24,9 @@ export default function UsersPage() {
     role: "user"
   });
 
-  // EFECTO DE SEGURIDAD: Si está logueado pero NO es admin, lo echamos
+  // Solo super_admin puede gestionar usuarios
   useEffect(() => {
-    if (user && user.role !== "admin") {
+    if (user && user.role !== "super_admin") {
       router.push("/dashboard");
     }
   }, [user, router]);
@@ -95,7 +95,7 @@ export default function UsersPage() {
   };
 
   // Si no es admin, devolvemos null temporalmente para que no haya un "destello" visual antes de la redirección
-  if (user && user.role !== "admin") return null;
+  if (user && user.role !== "super_admin") return null;
 
   return (
     <div className="p-8">

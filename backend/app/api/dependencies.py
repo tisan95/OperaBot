@@ -1,10 +1,12 @@
 """Dependency injection for FastAPI."""
 
 from fastapi import Depends, HTTPException, status, Request
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import get_db
 from app.utils.security import decode_token
 from app.services.auth_service import AuthService
+from app.models.user import User, UserRole
 from typing import Optional
 import uuid
 
@@ -95,3 +97,44 @@ async def get_current_company_id(request: Request) -> str:
         )
 
     return company_id
+
+
+async def _get_authenticated_user(request: Request, db: AsyncSession) -> User:
+    """Load the full User object for the authenticated request."""
+    user_id = await get_current_user_id(request)
+    company_id = await get_current_company_id(request)
+    result = await db.execute(
+        select(User).where(User.id == user_id, User.company_id == company_id)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    return user
+
+
+async def require_super_admin(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """Dependency: only super_admin role is allowed."""
+    user = await _get_authenticated_user(request, db)
+    if user.role != UserRole.SUPER_ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requieren permisos de Super Admin.",
+        )
+    return user
+
+
+async def require_admin(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """Dependency: admin and super_admin roles are allowed."""
+    user = await _get_authenticated_user(request, db)
+    if user.role not in (UserRole.ADMIN, UserRole.SUPER_ADMIN):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requieren permisos de administrador.",
+        )
+    return user

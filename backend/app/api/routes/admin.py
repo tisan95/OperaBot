@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_user_id, get_current_company_id
+from app.api.dependencies import get_current_user_id, get_current_company_id, require_admin, require_super_admin
 from app.api.schemas.analytics import (
     AnalyticsResponse,
     TopQuestionItem,
@@ -30,21 +30,11 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 @router.get("/analytics", response_model=AnalyticsResponse)
 async def get_analytics(
-    user_id: str = Depends(get_current_user_id),
-    company_id: str = Depends(get_current_company_id),
+    current_user: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ) -> AnalyticsResponse:
-    """Return analytics data for the current company."""
-    result = await db.execute(
-        select(User).where(User.id == user_id, User.company_id == company_id)
-    )
-    user = result.scalar_one_or_none()
-    if not user or user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required.",
-        )
-
+    """Return analytics data for the current company (admin + super_admin)."""
+    company_id = str(current_user.company_id)
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     chat_filter = (
         ChatMessage.company_id == company_id,
@@ -154,21 +144,11 @@ async def _check_postgres_health(db: AsyncSession) -> ServiceHealthStatus:
 
 @router.get("/system-stats", response_model=SystemStatsResponse)
 async def get_system_stats(
-    user_id: str = Depends(get_current_user_id),
-    company_id: str = Depends(get_current_company_id),
+    current_user: User = Depends(require_super_admin),
     db: AsyncSession = Depends(get_db),
 ) -> SystemStatsResponse:
-    """Return system statistics for dashboard (admin only)."""
-    # Verify admin role
-    result = await db.execute(
-        select(User).where(User.id == user_id, User.company_id == company_id)
-    )
-    user = result.scalar_one_or_none()
-    if not user or user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required.",
-        )
+    """Return system statistics for dashboard (super_admin only)."""
+    company_id = str(current_user.company_id)
 
     # Document statistics
     doc_count = await db.scalar(

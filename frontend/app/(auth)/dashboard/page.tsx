@@ -91,8 +91,11 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
+  const isSuperAdmin = user?.role === "super_admin";
+
   useEffect(() => {
-    if (user?.role !== "admin") {
+    if (!isSuperAdmin) {
       setLoading(false);
       return;
     }
@@ -110,10 +113,10 @@ export default function DashboardPage() {
     };
 
     loadStats();
-    const interval = setInterval(loadStats, 30000); // Refresh every 30 seconds
+    const interval = setInterval(loadStats, 30000);
 
     return () => clearInterval(interval);
-  }, [user?.role]);
+  }, [isSuperAdmin]);
 
   return (
     <div className="space-y-8">
@@ -124,12 +127,13 @@ export default function DashboardPage() {
         </h1>
         <p className="text-lg text-slate-600 mt-3">
           {company?.name} • Operational Knowledge Assistant
+          {isSuperAdmin && <span className="ml-3 text-sm bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold">Super Admin</span>}
           {user?.role === "admin" && <span className="ml-3 text-sm bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full font-semibold">Admin</span>}
         </p>
       </div>
 
-      {/* Admin Analytics Dashboard */}
-      {user?.role === "admin" && (
+      {/* System Stats — solo super_admin carga y ve este bloque */}
+      {isSuperAdmin && (
         <>
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -144,70 +148,25 @@ export default function DashboardPage() {
             </div>
           ) : stats ? (
             <>
-              {/* Knowledge Base Metrics */}
               <section>
                 <h2 className="text-2xl font-bold text-slate-900 mb-4">📚 Knowledge Base</h2>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <MetricCard
-                    icon="📄"
-                    title="Documents"
-                    value={stats.documents.total_documents}
-                    subtitle={`${stats.documents.total_vectors} vectors`}
-                    color="indigo"
-                  />
-                  <MetricCard
-                    icon="📋"
-                    title="FAQs"
-                    value={stats.faqs.total_faqs}
-                    subtitle={`${stats.faqs.total_vectors} vectors`}
-                    color="cyan"
-                  />
-                  <MetricCard
-                    icon="💾"
-                    title="Storage"
-                    value={`${(stats.documents.total_size_bytes / 1024).toFixed(1)} KB`}
-                    subtitle="Total documents"
-                    color="green"
-                  />
-                  <MetricCard
-                    icon="📈"
-                    title="Processed Today"
-                    value={stats.documents.documents_processed_today}
-                    subtitle="new documents"
-                    color="orange"
-                  />
+                  <MetricCard icon="📄" title="Documents" value={stats.documents.total_documents} subtitle={`${stats.documents.total_vectors} vectors`} color="indigo" />
+                  <MetricCard icon="📋" title="FAQs" value={stats.faqs.total_faqs} subtitle={`${stats.faqs.total_vectors} vectors`} color="cyan" />
+                  <MetricCard icon="💾" title="Storage" value={`${(stats.documents.total_size_bytes / 1024).toFixed(1)} KB`} subtitle="Total documents" color="green" />
+                  <MetricCard icon="📈" title="Processed Today" value={stats.documents.documents_processed_today} subtitle="new documents" color="orange" />
                 </div>
               </section>
 
-              {/* Chat Metrics */}
               <section>
                 <h2 className="text-2xl font-bold text-slate-900 mb-4">💬 Chat Analytics (Today)</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <MetricCard
-                    icon="💭"
-                    title="Messages"
-                    value={stats.chat_today.total_chats_today}
-                    subtitle="conversations today"
-                    color="indigo"
-                  />
-                  <MetricCard
-                    icon="✨"
-                    title="Success Rate"
-                    value={`${(stats.chat_today.success_rate * 100).toFixed(1)}%`}
-                    subtitle="RAG responses"
-                    color={stats.chat_today.success_rate >= 0.8 ? "green" : "orange"}
-                  />
-                  <MetricCard
-                    icon="🎯"
-                    title="Confidence"
-                    value={`${(stats.chat_today.avg_confidence * 100).toFixed(0)}%`}
-                    subtitle="average score"
-                    color={stats.chat_today.avg_confidence >= 0.7 ? "green" : "orange"}
-                  />
+                  <MetricCard icon="💭" title="Messages" value={stats.chat_today.total_chats_today} subtitle="conversations today" color="indigo" />
+                  <MetricCard icon="✨" title="Success Rate" value={`${(stats.chat_today.success_rate * 100).toFixed(1)}%`} subtitle="RAG responses" color={stats.chat_today.success_rate >= 0.8 ? "green" : "orange"} />
+                  <MetricCard icon="🎯" title="Confidence" value={`${(stats.chat_today.avg_confidence * 100).toFixed(0)}%`} subtitle="average score" color={stats.chat_today.avg_confidence >= 0.7 ? "green" : "orange"} />
                 </div>
               </section>
 
-              {/* Services Status */}
               <section>
                 <h2 className="text-2xl font-bold text-slate-900 mb-4">🔧 System Services</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -217,7 +176,6 @@ export default function DashboardPage() {
                 </div>
               </section>
 
-              {/* Last Updated */}
               <p className="text-xs text-slate-400 text-center">
                 Last updated: {new Date(stats.timestamp).toLocaleTimeString()}
               </p>
@@ -246,7 +204,7 @@ export default function DashboardPage() {
             <div className="absolute right-0 top-0 text-6xl opacity-10">→</div>
           </Link>
 
-          {user?.role === "admin" && (
+          {isAdmin && (
             <Link href="/documents" className="group relative overflow-hidden card bg-gradient-to-br from-emerald-600 to-teal-600 text-white p-6 hover:shadow-xl transition">
               <div className="relative z-10">
                 <h3 className="font-semibold text-lg mb-2">📤 Upload Documents</h3>

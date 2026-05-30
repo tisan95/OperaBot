@@ -14,13 +14,15 @@ export default function DocumentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
+  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
+
   useEffect(() => {
-    if (user && user.role !== "admin") router.push("/dashboard");
-  }, [user, router]);
+    if (user && !isAdmin) router.push("/dashboard");
+  }, [user, isAdmin, router]);
 
   useEffect(() => { loadDocuments(); }, []);
 
-  if (user && user.role !== "admin") return null;
+  if (user && !isAdmin) return null;
 
   const loadDocuments = async () => {
     setLoading(true);

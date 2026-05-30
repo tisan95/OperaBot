@@ -8,7 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
-from app.api.dependencies import get_current_user_id, get_current_company_id
+from app.api.dependencies import get_current_user_id, get_current_company_id, require_admin
+from app.models.user import User
 from app.api.schemas.faq import FAQCreate, FAQRead
 from app.models.faq import FAQ
 from app.services.qdrant_service import qdrant_service
@@ -37,8 +38,9 @@ async def get_faqs(
 async def create_faq(
     request: FAQCreate,
     db: AsyncSession = Depends(get_db),
-    company_id: str = Depends(get_current_company_id),
+    current_user: User = Depends(require_admin),
 ) -> FAQRead:
+    company_id = str(current_user.company_id)
     """Create a new FAQ entry and store it in Qdrant."""
     try:
         logger.info(f"📝 Creating FAQ for company {company_id}: '{request.question[:50]}...'")
@@ -115,8 +117,9 @@ async def update_faq(
     faq_id: int,
     request: FAQCreate,
     db: AsyncSession = Depends(get_db),
-    company_id: str = Depends(get_current_company_id),
+    current_user: User = Depends(require_admin),
 ) -> FAQRead:
+    company_id = str(current_user.company_id)
     """Update FAQ and refresh its vector in Qdrant."""
     try:
         result = await db.execute(
@@ -172,8 +175,9 @@ async def update_faq(
 async def delete_faq(
     faq_id: int,
     db: AsyncSession = Depends(get_db),
-    company_id: str = Depends(get_current_company_id),
+    current_user: User = Depends(require_admin),
 ):
+    company_id = str(current_user.company_id)
     """Delete FAQ from PostgreSQL and its vector from Qdrant."""
     try:
         # 1. Fetch FAQ to ensure it exists and belongs to the company

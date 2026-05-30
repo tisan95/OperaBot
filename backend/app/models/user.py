@@ -12,6 +12,7 @@ from app.db.database import Base, GUID
 class UserRole(str, PyEnum):
     """User role enumeration."""
 
+    SUPER_ADMIN = "super_admin"
     ADMIN = "admin"
     USER = "user"
 

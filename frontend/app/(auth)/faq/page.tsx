@@ -10,7 +10,7 @@ import { useAuthContext } from "@/components/Auth/AuthProvider";
 export default function FAQPage() {
   // EXTRAEMOS EL USUARIO
   const { user } = useAuthContext();
-  const isAdmin = user?.role === "admin"; // Variable auxiliar súper útil
+  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
 
   const [faqs, setFaqs] = useState<FAQ[]>([]);
   const [loading, setLoading] = useState(true);

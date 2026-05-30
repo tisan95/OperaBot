@@ -67,7 +67,7 @@ class AuthService:
         # Determine role and approval status.
         existing_users = await self.user_repo.get_all_by_company(company.id)
         is_initial_admin = len(existing_users) == 0
-        role = UserRole.ADMIN if is_initial_admin else UserRole.USER
+        role = UserRole.SUPER_ADMIN if is_initial_admin else UserRole.USER
         status = UserStatus.ACTIVE if is_initial_admin else UserStatus.PENDING
 
         # Create user
