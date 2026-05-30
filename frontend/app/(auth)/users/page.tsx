@@ -13,6 +13,7 @@ export default function UsersPage() {
 
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [pendingRoles, setPendingRoles] = useState<Record<string, string>>({});
   
   // Estados para el Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -75,6 +76,24 @@ export default function UsersPage() {
     }
   };
 
+  const handleRoleChange = (userId: string, role: string) => {
+    setPendingRoles((current) => ({ ...current, [userId]: role }));
+  };
+
+  const handleApproveUser = async (id: string) => {
+    const role = pendingRoles[id] || "user";
+
+    try {
+      await apiFetch(`/users/${id}/approve`, {
+        method: "PATCH",
+        body: JSON.stringify({ role }),
+      });
+      loadUsers();
+    } catch (err: any) {
+      alert(err.message || "Error al aprobar el usuario");
+    }
+  };
+
   // Si no es admin, devolvemos null temporalmente para que no haya un "destello" visual antes de la redirección
   if (user && user.role !== "admin") return null;
 
@@ -113,16 +132,37 @@ export default function UsersPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    {u.is_active ? "✅ Activo" : "❌ Inactivo"}
+                    <span className={`px-2 py-1 rounded text-xs uppercase font-bold ${u.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                      {u.status || 'pendiente'}
+                    </span>
                   </td>
-                  <td className="px-6 py-4">
-                    <button 
-                      onClick={() => handleDeleteUser(u.id)}
-                      className="text-red-500 hover:text-red-700 transition"
-                      title="Eliminar usuario"
-                    >
-                      🗑️
-                    </button>
+                  <td className="px-6 py-4 space-y-2">
+                    {u.status === 'pending' ? (
+                      <div className="space-y-2">
+                        <select
+                          value={pendingRoles[u.id] || u.role || 'user'}
+                          onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                          className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        >
+                          <option value="user">Usuario</option>
+                          <option value="admin">Administrador</option>
+                        </select>
+                        <button
+                          onClick={() => handleApproveUser(u.id)}
+                          className="w-full bg-emerald-600 text-white px-3 py-2 rounded-lg hover:bg-emerald-700 transition"
+                        >
+                          Aprobar
+                        </button>
+                      </div>
+                    ) : (
+                      <button 
+                        onClick={() => handleDeleteUser(u.id)}
+                        className="text-red-500 hover:text-red-700 transition"
+                        title="Eliminar usuario"
+                      >
+                        🗑️
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))

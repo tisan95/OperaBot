@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { useAuthContext } from "@/components/Auth/AuthProvider";
 
 const navigation = [
   { name: "Chat", href: "/chat", icon: "💬" },
@@ -9,9 +10,14 @@ const navigation = [
   { name: "Documents", href: "/documents", icon: "📄" },
 ];
 
+const adminNavigation = [
+  { name: "Tickets", href: "/tickets", icon: "🧾" },
+  { name: "Usuarios", href: "/users", icon: "👥" },
+];
+
 export default function Sidebar() {
-  const router = useRouter();
   const pathname = usePathname();
+  const { user } = useAuthContext();
 
   return (
     <aside className="w-64 bg-slate-900 text-white shadow-lg">
@@ -44,6 +50,27 @@ export default function Sidebar() {
             </Link>
           );
         })}
+        {user?.role === "admin" && (
+          <div className="pt-4 border-t border-slate-700 space-y-2">
+            {adminNavigation.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition ${
+                    isActive
+                      ? "bg-indigo-600 font-semibold"
+                      : "hover:bg-slate-800"
+                  }`}
+                >
+                  <span className="text-xl">{item.icon}</span>
+                  <span>{item.name}</span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </nav>
     </aside>
   );

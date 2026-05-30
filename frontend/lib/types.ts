@@ -2,6 +2,7 @@ export interface User {
   id: string;
   email: string;
   role: "admin" | "user";
+  status?: "pending" | "active";
   company_id: string;
   is_active?: boolean;
   created_at?: string;
