@@ -129,6 +129,20 @@ def _build_context(knowledge: Dict[str, List[Dict[str, Any]]]) -> str:
     return context.strip() or ""
 
 
+def _extract_cited_documents(knowledge: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, str]]:
+    """Extract document IDs and names from RAG results for frontend preview links."""
+    seen: set = set()
+    cited = []
+    for doc in knowledge.get("documents", []):
+        payload = doc.get("payload", {})
+        doc_id = payload.get("document_id")
+        filename = payload.get("filename", "")
+        if doc_id is not None and doc_id not in seen:
+            seen.add(doc_id)
+            cited.append({"id": str(doc_id), "name": filename})
+    return cited
+
+
 def _extract_sources(knowledge: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, str]]:
     sources: Dict[str, Dict[str, str]] = {}
     for faq in knowledge.get("faqs", []):
@@ -315,12 +329,14 @@ async def generate_answer_with_sources(
 
         sources = _extract_sources(knowledge)
         confidence = _calculate_confidence(knowledge)
+        cited_documents = _extract_cited_documents(knowledge)
 
         return {
             "answer": answer,
             "sources": sources,
             "confidence": confidence,
             "ui_hint": "resolution_prompt",
+            "cited_documents": cited_documents,
         }
 
     except Exception as e:

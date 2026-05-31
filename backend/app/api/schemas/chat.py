@@ -17,6 +17,10 @@ class ChatMessageResponse(BaseModel):
     confidence: float = Field(default=0.0, ge=0.0, le=1.0)
     created_at: datetime
     ui_hint: Optional[str] = None  # "resolution_prompt" | "escalate_prompt" | None
+    # Documents cited by the RAG answer — used by the frontend for inline PDF preview
+    cited_documents: List[Dict[str, str]] = Field(
+        default_factory=list, description="[{id, name}] of documents used in the answer"
+    )
 
     class Config:
         from_attributes = True

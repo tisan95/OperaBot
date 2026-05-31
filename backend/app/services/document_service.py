@@ -7,12 +7,16 @@ from typing import List, Dict, Any
 from pathlib import Path
 from PyPDF2 import PdfReader
 from sqlalchemy.ext.asyncio import AsyncSession
-import asyncio
 
 from app.models.document import Document
 from app.services.qdrant_service import qdrant_service
+from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Ensure storage root exists at import time
+_STORAGE_ROOT = Path(settings.DOCUMENTS_STORAGE_PATH)
+_STORAGE_ROOT.mkdir(parents=True, exist_ok=True)
 
 
 class DocumentService:
@@ -21,48 +25,45 @@ class DocumentService:
     def __init__(self):
         self.max_file_size = 10 * 1024 * 1024  # 10MB
         self.allowed_types = ["application/pdf"]
-        self.chunk_size = 1000  # Characters per chunk
-        self.chunk_overlap = 200  # Overlap between chunks
+        self.chunk_size = 1000
+        self.chunk_overlap = 200
 
-    async def process_upload(self, file, filename: str, content_type: str,
-                           file_size: int, company_id: str, db: AsyncSession) -> Document:
-        """Process an uploaded file and store it.
-
-        Args:
-            file: Uploaded file object
-            filename: Original filename
-            content_type: MIME type
-            file_size: File size in bytes
-            company_id: Company ID
-            db: Database session
-
-        Returns:
-            Created Document instance
-        """
-        # Validate file
+    async def process_upload(
+        self,
+        file,
+        filename: str,
+        content_type: str,
+        file_size: int,
+        company_id: str,
+        db: AsyncSession,
+    ) -> Document:
+        """Process an uploaded file, store it, and vectorize its content."""
         self._validate_file(filename, content_type, file_size)
 
-        # Create document record
+        # Read all bytes once — the stream can only be read once
+        file_bytes = await file.read()
+
+        # Create document record first (need the ID for the file path)
         document = Document(
             company_id=company_id,
             filename=filename,
             content_type=content_type,
             file_size=file_size,
-            upload_status="processing"
+            upload_status="processing",
         )
-
         db.add(document)
         await db.commit()
         await db.refresh(document)
 
         try:
-            # Extract text from PDF
-            extracted_text = await self._extract_text_from_pdf(file)
+            # Persist PDF to disk
+            file_path = self._save_pdf(file_bytes, company_id, document.id, filename)
 
-            # Split into chunks
+            # Extract text from the bytes we already have
+            extracted_text = self._extract_text_from_bytes(file_bytes, filename)
+
+            # Split into chunks and vectorize
             chunks = self._split_text_into_chunks(extracted_text)
-
-            # Store vectors in Qdrant
             vector_count = await qdrant_service.store_document_chunks(
                 document_id=document.id,
                 company_id=company_id,
@@ -70,149 +71,120 @@ class DocumentService:
                 metadata={
                     "filename": filename,
                     "content_type": content_type,
-                    "file_size": file_size
-                }
+                    "file_size": file_size,
+                },
             )
 
-            # Update document record
+            document.file_path = str(file_path)
             document.extracted_text = extracted_text
             document.vector_count = vector_count
             document.upload_status = "completed"
-
             await db.commit()
             await db.refresh(document)
 
-            logger.info(f"Successfully processed document {document.id}: {filename}")
+            logger.info(f"Processed document {document.id}: {filename} → {file_path}")
             return document
 
         except Exception as e:
-            # Mark as failed
             document.upload_status = "failed"
             await db.commit()
-
             logger.error(f"Failed to process document {document.id}: {e}")
             raise
 
     def _validate_file(self, filename: str, content_type: str, file_size: int):
-        """Validate uploaded file."""
         if content_type not in self.allowed_types:
-            raise ValueError(f"Unsupported file type: {content_type}. Only PDF files are allowed.")
-
+            raise ValueError(f"Tipo de archivo no soportado: {content_type}. Solo se aceptan PDFs.")
         if file_size > self.max_file_size:
-            raise ValueError(f"File too large: {file_size} bytes. Maximum size is {self.max_file_size} bytes.")
+            raise ValueError(f"Archivo demasiado grande: {file_size} bytes. Máximo {self.max_file_size} bytes.")
+        if not filename.lower().endswith(".pdf"):
+            raise ValueError("El archivo debe tener extensión .pdf")
 
-        if not filename.lower().endswith('.pdf'):
-            raise ValueError("File must have .pdf extension")
+    def _save_pdf(self, file_bytes: bytes, company_id: str, document_id: int, filename: str) -> Path:
+        """Save PDF bytes to persistent storage and return the path."""
+        safe_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in filename)
+        company_dir = _STORAGE_ROOT / str(company_id)
+        company_dir.mkdir(parents=True, exist_ok=True)
+        dest = company_dir / f"{document_id}_{safe_name}"
+        dest.write_bytes(file_bytes)
+        return dest
 
-    async def _extract_text_from_pdf(self, file) -> str:
-        """Extract text content from PDF file."""
+    def _extract_text_from_bytes(self, file_bytes: bytes, filename: str = "document.pdf") -> str:
+        """Extract text from PDF bytes using a temporary file."""
+        tmp_path = None
         try:
-            # Save file temporarily
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
-                content = await file.read()
-                temp_file.write(content)
-                temp_file_path = temp_file.name
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                tmp.write(file_bytes)
+                tmp_path = tmp.name
 
-            try:
-                # Extract text using PyPDF2
-                reader = PdfReader(temp_file_path)
-                text = ""
+            reader = PdfReader(tmp_path)
+            text = "\n".join(
+                page.extract_text() or "" for page in reader.pages
+            ).strip()
 
-                for page in reader.pages:
-                    page_text = page.extract_text()
-                    if page_text:
-                        text += page_text + "\n"
+            if not text:
+                raise ValueError("No se pudo extraer texto del PDF")
 
-                if not text.strip():
-                    raise ValueError("No text could be extracted from PDF")
-
-                logger.info(f"Extracted {len(text)} characters from PDF")
-                return text.strip()
-
-            finally:
-                # Clean up temp file
-                os.unlink(temp_file_path)
+            logger.info(f"Extracted {len(text)} chars from {filename}")
+            return text
 
         except Exception as e:
             logger.error(f"Failed to extract text from PDF: {e}")
-            raise ValueError(f"Failed to extract text from PDF: {str(e)}")
+            raise ValueError(f"No se pudo extraer texto del PDF: {str(e)}")
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                os.unlink(tmp_path)
 
     def _split_text_into_chunks(self, text: str) -> List[str]:
-        """Split text into overlapping chunks for embedding."""
         if not text:
             return []
-
-        chunks = []
-        start = 0
-
+        chunks, start = [], 0
         while start < len(text):
             end = start + self.chunk_size
-
-            # If we're not at the end, try to break at a sentence or word boundary
             if end < len(text):
-                # Look for sentence endings within the last 100 characters
-                sentence_endings = ['. ', '! ', '? ', '\n']
-                break_pos = end
-
-                for ending in sentence_endings:
+                for ending in (". ", "! ", "? ", "\n"):
                     pos = text.rfind(ending, max(start, end - 100), end)
                     if pos != -1:
-                        break_pos = pos + len(ending)
+                        end = pos + len(ending)
                         break
-
-                # If no sentence ending found, break at word boundary
-                if break_pos == end:
-                    space_pos = text.rfind(' ', max(start, end - 50), end)
-                    if space_pos != -1:
-                        break_pos = space_pos
-
-                end = break_pos
-
+                else:
+                    sp = text.rfind(" ", max(start, end - 50), end)
+                    if sp != -1:
+                        end = sp
             chunk = text[start:end].strip()
             if chunk:
                 chunks.append(chunk)
-
-            # Move start position with overlap
             start = max(start + 1, end - self.chunk_overlap)
-
-        logger.info(f"Split text into {len(chunks)} chunks")
         return chunks
 
     async def get_company_documents(self, company_id: str, db: AsyncSession) -> List[Document]:
-        """Get all documents for a company."""
         from sqlalchemy import select
-
-        result = await db.execute(
-            select(Document).where(Document.company_id == company_id)
-        )
+        result = await db.execute(select(Document).where(Document.company_id == company_id))
         return result.scalars().all()
 
-    async def delete_document(self, document_id: int, company_id: str, db: AsyncSession) -> bool:
-        """Delete a document and its vectors."""
+    async def get_document(self, document_id: int, company_id: str, db: AsyncSession):
         from sqlalchemy import select
-
-        # Get document
         result = await db.execute(
-            select(Document).where(
-                Document.id == document_id,
-                Document.company_id == company_id
-            )
+            select(Document).where(Document.id == document_id, Document.company_id == company_id)
         )
-        document = result.scalars().first()
+        return result.scalar_one_or_none()
 
-        if not document:
+    async def delete_document(self, document_id: int, company_id: str, db: AsyncSession) -> bool:
+        doc = await self.get_document(document_id, company_id, db)
+        if not doc:
             return False
 
-        # Delete vectors from Qdrant
+        # Remove file from disk if present
+        if doc.file_path and os.path.exists(doc.file_path):
+            try:
+                os.unlink(doc.file_path)
+            except OSError as e:
+                logger.warning(f"Could not delete file {doc.file_path}: {e}")
+
         qdrant_service.delete_document_vectors(document_id)
-
-        # Delete from database
-        await db.delete(document)
+        await db.delete(doc)
         await db.commit()
-
         logger.info(f"Deleted document {document_id} for company {company_id}")
         return True
 
 
-# Global instance
 document_service = DocumentService()

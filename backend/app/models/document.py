@@ -16,7 +16,8 @@ class Document(Base):
     filename = Column(String(255), nullable=False)
     content_type = Column(String(100), nullable=False)
     file_size = Column(Integer, nullable=False)  # Size in bytes
-    extracted_text = Column(Text, nullable=True)  # Extracted text from PDF
+    file_path = Column(String(500), nullable=True)   # Persistent storage path for the PDF
+    extracted_text = Column(Text, nullable=True)     # Extracted text from PDF
     vector_count = Column(Integer, default=0)  # Number of vectors stored in Qdrant
     upload_status = Column(String(50), default="processing")  # processing, completed, failed
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

@@ -119,6 +119,7 @@ async def chat_message(
             confidence=bot_response.get("confidence", 0.0),
             created_at=entry.created_at,
             ui_hint=bot_response.get("ui_hint"),
+            cited_documents=bot_response.get("cited_documents", []),
         )
 
     except Exception as e:

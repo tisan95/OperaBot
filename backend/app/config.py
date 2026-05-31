@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     
     QDRANT_URL: str = "http://localhost:6333"
 
+    # File storage — PDFs uploaded by admins
+    DOCUMENTS_STORAGE_PATH: str = "./uploads/documents"
+
     # Not used with Ollama (local LLM)
     LLM_API_KEY: str | None = None
     GEMINI_API_KEY: str | None = None
