@@ -18,6 +18,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Ticket } from "@/lib/types";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 interface SystemStats {
   documents: {
@@ -321,9 +322,10 @@ export default function DashboardPage() {
                       <p className="text-xs font-semibold mb-1" style={{ color: "#38A169" }}>
                         Respuesta del equipo
                       </p>
-                      <p className="text-sm" style={{ color: "#F5F5F5" }}>
-                        {ticket.resolution_message}
-                      </p>
+                      <div
+                        className="rich-content text-sm"
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(ticket.resolution_message ?? "") }}
+                      />
                     </div>
                   )}
                 </div>

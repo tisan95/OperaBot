@@ -13,6 +13,19 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@tiptap/extension-highlight": "^3.24.0",
+    "@tiptap/extension-link": "^3.24.0",
+    "@tiptap/extension-placeholder": "^3.24.0",
+    "@tiptap/extension-table": "^3.24.0",
+    "@tiptap/extension-table-cell": "^3.24.0",
+    "@tiptap/extension-table-header": "^3.24.0",
+    "@tiptap/extension-table-row": "^3.24.0",
+    "@tiptap/extension-text-align": "^3.24.0",
+    "@tiptap/extension-underline": "^3.24.0",
+    "@tiptap/pm": "^3.24.0",
+    "@tiptap/react": "^3.24.0",
+    "@tiptap/starter-kit": "^3.24.0",
+    "lucide-react": "^1.17.0",
     "next": "14.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

@@ -3,6 +3,7 @@
 import { apiFetch } from "@/lib/api";
 import { Ticket } from "@/lib/types";
 import { useEffect, useState } from "react";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { CircleCheck, Clock, AlertCircle } from "lucide-react";
 
 const statusConfig = {
@@ -117,9 +118,10 @@ export default function MyTicketsPage() {
                     <p className="text-xs font-semibold mb-1.5" style={{ color: "#38A169" }}>
                       Respuesta del equipo
                     </p>
-                    <p className="text-sm leading-relaxed" style={{ color: "#F5F5F5" }}>
-                      {ticket.resolution_message}
-                    </p>
+                    <div
+                      className="rich-content text-sm"
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(ticket.resolution_message) }}
+                    />
                   </div>
                 )}
               </div>

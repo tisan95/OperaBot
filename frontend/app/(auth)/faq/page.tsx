@@ -4,6 +4,8 @@ import { apiFetch } from "@/lib/api";
 import { FAQ } from "@/lib/types";
 import { FormEvent, useEffect, useState } from "react";
 import { useAuthContext } from "@/components/Auth/AuthProvider";
+import RichEditor from "@/components/Shared/RichEditor";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 export default function FAQPage() {
   const { user } = useAuthContext();
@@ -185,8 +187,11 @@ export default function FAQPage() {
                         <td className="px-4 py-3 align-top" style={{ color: "#F5F5F5" }}>
                           {faq.question}
                         </td>
-                        <td className="px-4 py-3 align-top" style={{ color: "#888888" }}>
-                          {faq.answer}
+                        <td className="px-4 py-3 align-top max-w-sm">
+                          <div
+                            className="rich-content text-xs"
+                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(faq.answer) }}
+                          />
                         </td>
                         <td className="px-4 py-3 align-top" style={{ color: "#888888" }}>
                           {faq.category || "General"}
@@ -273,13 +278,11 @@ export default function FAQPage() {
                   >
                     Respuesta
                   </label>
-                  <textarea
-                    id="answer"
-                    value={answer}
-                    onChange={(event) => setAnswer(event.target.value)}
-                    className="input"
-                    rows={4}
-                    placeholder="Escribe la respuesta"
+                  <RichEditor
+                    content={answer}
+                    onChange={setAnswer}
+                    placeholder="Escribe la respuesta..."
+                    minHeight={140}
                   />
                 </div>
 

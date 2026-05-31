@@ -6,6 +6,11 @@ import { Ticket, TicketNote } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { X, Plus, ChevronDown, ChevronUp } from "lucide-react";
+import RichEditor from "@/components/Shared/RichEditor";
+import { sanitizeHtml } from "@/lib/sanitize";
+
+const isEmptyHtml = (html: string) =>
+  !html || html.replace(/<[^>]*>/g, "").trim().length === 0;
 
 const statusLabels: Record<string, string> = {
   open: "Open",
@@ -86,7 +91,7 @@ function TicketDetail({
   };
 
   const resolveTicket = async () => {
-    if (!resolutionMsg.trim()) {
+    if (isEmptyHtml(resolutionMsg)) {
       setError("Escribe una respuesta antes de resolver.");
       return;
     }
@@ -201,9 +206,10 @@ function TicketDetail({
               <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "#38A169" }}>
                 Respuesta al usuario
               </p>
-              <p className="text-sm" style={{ color: "#F5F5F5" }}>
-                {ticket.resolution_message}
-              </p>
+              <div
+                className="rich-content text-sm"
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(ticket.resolution_message) }}
+              />
             </div>
           )}
 
@@ -222,7 +228,10 @@ function TicketDetail({
                   className="rounded-lg border px-4 py-3"
                   style={{ backgroundColor: "#111111", borderColor: "#2A2A2A" }}
                 >
-                  <p className="text-sm" style={{ color: "#F5F5F5" }}>{n.content}</p>
+                  <div
+                    className="rich-content text-sm"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(n.content) }}
+                  />
                   <p className="text-xs mt-1" style={{ color: "#555555" }}>
                     {n.author_email ?? "Admin"} · {new Date(n.created_at).toLocaleString()}
                   </p>
@@ -230,21 +239,20 @@ function TicketDetail({
               ))}
             </div>
             {!isResolved && (
-              <div className="flex gap-2">
-                <textarea
-                  value={noteText}
-                  onChange={(e) => setNoteText(e.target.value)}
+              <div className="space-y-2">
+                <RichEditor
+                  content={noteText}
+                  onChange={setNoteText}
                   placeholder="Añadir nota interna..."
-                  rows={2}
-                  className="input flex-1 resize-none"
+                  minHeight={80}
                 />
                 <button
                   onClick={addNote}
-                  disabled={savingNote || !noteText.trim()}
-                  className="btn btn-secondary btn-sm self-end"
+                  disabled={savingNote || isEmptyHtml(noteText)}
+                  className="btn btn-secondary btn-sm"
                 >
                   <Plus size={14} strokeWidth={2} />
-                  {savingNote ? "..." : "Añadir"}
+                  {savingNote ? "..." : "Añadir nota"}
                 </button>
               </div>
             )}
@@ -272,12 +280,11 @@ function TicketDetail({
                 <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#888888" }}>
                   Resolución
                 </p>
-                <textarea
-                  value={resolutionMsg}
-                  onChange={(e) => setResolutionMsg(e.target.value)}
+                <RichEditor
+                  content={resolutionMsg}
+                  onChange={setResolutionMsg}
                   placeholder="Escribe la respuesta al usuario antes de resolver..."
-                  rows={4}
-                  className="input w-full resize-none"
+                  minHeight={120}
                 />
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -293,7 +300,7 @@ function TicketDetail({
                 </label>
                 <button
                   onClick={resolveTicket}
-                  disabled={resolving || !resolutionMsg.trim()}
+                  disabled={resolving || isEmptyHtml(resolutionMsg)}
                   className="btn btn-primary w-full"
                 >
                   {resolving ? "Resolviendo..." : "Resolver y notificar"}
