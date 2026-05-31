@@ -1,47 +1,78 @@
-"""Chat endpoint with RAG (Retrieval Augmented Generation)."""
+"""Chat endpoint with intent classification + RAG."""
 
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 from typing import List, Dict, Any
 
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.dependencies import get_current_company_id, get_current_user_id
 from app.api.limiter import limiter
-from app.api.schemas.chat import ChatMessageRequest, ChatMessageResponse
+from app.api.schemas.chat import (
+    ChatMessageRequest,
+    ChatMessageResponse,
+    EscalateRequest,
+    EscalateResponse,
+)
 from app.db.database import get_db
 from app.models.chat_message import ChatMessage
 from app.models.ticket import Ticket, TicketPriority
-from app.services.llm_client import generate_answer_with_sources
+from app.services.llm_client import (
+    classify_intent,
+    generate_answer_with_sources,
+    greeting_response,
+    confirmation_response,
+    negation_response,
+)
 
 logger = logging.getLogger(__name__)
-
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
-async def _save_chat_message(
+async def _save_chat(
     db: AsyncSession,
     company_id: str,
     user_id: str,
     user_message: str,
     bot_response: Dict[str, Any],
 ) -> ChatMessage:
-    """Save chat message with sources and confidence to database."""
-    chat_entry = ChatMessage(
+    entry = ChatMessage(
         company_id=company_id,
         user_id=user_id,
         user_message=user_message,
-        bot_message=bot_response.get("answer", ""),
+        bot_message=bot_response["answer"],
         sources=bot_response.get("sources", []),
         confidence=bot_response.get("confidence", 0.0),
-        is_fallback=False,  # RAG responses are not fallback
+        is_fallback=False,
     )
-    db.add(chat_entry)
+    db.add(entry)
     await db.commit()
-    await db.refresh(chat_entry)
-    return chat_entry
+    await db.refresh(entry)
+    return entry
 
+
+async def _count_recent_rag_exchanges(
+    db: AsyncSession, user_id: str, company_id: str
+) -> int:
+    """Count consecutive recent messages with RAG answers (confidence > 0)."""
+    result = await db.execute(
+        select(ChatMessage)
+        .where(ChatMessage.user_id == user_id, ChatMessage.company_id == company_id)
+        .order_by(ChatMessage.created_at.desc())
+        .limit(5)
+    )
+    count = 0
+    for msg in result.scalars().all():
+        if (msg.confidence or 0.0) > 0:
+            count += 1
+        else:
+            break
+    return count
+
+
+# ── POST /chat/messages ──────────────────────────────────────────────────────
 
 @router.post("/messages", response_model=ChatMessageResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("20/minute")
@@ -52,72 +83,100 @@ async def chat_message(
     company_id: str = Depends(get_current_company_id),
     db: AsyncSession = Depends(get_db),
 ) -> ChatMessageResponse:
-    """Send a chat message and receive an AI-generated response with sources."""
-    logger.info(f"POST /chat/messages - User {user_id}, Message: '{body.message[:50]}...'")
-
     user_message = body.message.strip()
     if not user_message:
-        logger.warning(f"User {user_id} sent empty message")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Please enter a message to continue.",
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El mensaje no puede estar vacío.")
+
+    intent = classify_intent(user_message)
+    logger.info(f"[chat] user={user_id} intent={intent} msg='{user_message[:60]}'")
 
     try:
-        # Generate answer with RAG (searches FAQs + Documents)
-        logger.info(f"Generating RAG answer for company {company_id}")
-        bot_response = await generate_answer_with_sources(user_message, company_id)
+        if intent == "GREETING":
+            bot_response = greeting_response()
 
-        # Auto-create ticket if confidence is 0.0 (no answer found)
-        # Do this before saving the chat so the escalation note is persisted
-        if bot_response.get("confidence", 0.0) == 0.0:
-            ticket = Ticket(
-                company_id=company_id,
-                user_id=user_id,
-                question=user_message,
-                priority=TicketPriority.MEDIUM,
+        elif intent == "CONFIRMATION":
+            bot_response = confirmation_response()
+
+        elif intent == "NEGATION":
+            bot_response = negation_response()
+
+        else:  # QUESTION
+            recent_rag = await _count_recent_rag_exchanges(db, user_id, company_id)
+            bot_response = await generate_answer_with_sources(
+                user_message, company_id, recent_rag_count=recent_rag
             )
-            db.add(ticket)
-            await db.flush()
-            await db.refresh(ticket)
-            bot_response["answer"] = (
-                bot_response.get("answer", "")
-                + f"\n\nHe escalado tu consulta. Ticket #{ticket.id} creado."
-            )
-            logger.info(f"Auto-created ticket #{ticket.id} from chat message (confidence=0.0)")
 
-        # Save chat message (with escalation note already in answer if applicable)
-        chat_entry = await _save_chat_message(
-            db=db,
-            company_id=company_id,
-            user_id=user_id,
-            user_message=user_message,
-            bot_response=bot_response,
-        )
-
-        logger.info(f"Chat saved: {chat_entry.id}, sources: {len(bot_response.get('sources', []))}")
+        entry = await _save_chat(db, company_id, user_id, user_message, bot_response)
+        logger.info(f"[chat] saved message id={entry.id} confidence={bot_response.get('confidence', 0):.2f}")
 
         return ChatMessageResponse(
-            id=chat_entry.id,
+            id=entry.id,
             user_message=user_message,
-            bot_message=bot_response.get("answer", ""),
+            bot_message=bot_response["answer"],
             sources=bot_response.get("sources", []),
             confidence=bot_response.get("confidence", 0.0),
-            created_at=chat_entry.created_at,
+            created_at=entry.created_at,
+            ui_hint=bot_response.get("ui_hint"),
         )
 
     except Exception as e:
-        logger.error(f"Error processing chat message: {e}", exc_info=True)
+        logger.error(f"[chat] Error: {e}", exc_info=True)
         try:
             await db.rollback()
         except Exception:
             pass
-        
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error processing your message. Please try again.",
+            detail="Error procesando tu mensaje. Por favor, intenta de nuevo.",
         )
 
+
+# ── POST /chat/escalate ──────────────────────────────────────────────────────
+
+@router.post("/escalate", response_model=EscalateResponse, status_code=status.HTTP_201_CREATED)
+async def escalate_chat(
+    body: EscalateRequest,
+    user_id: str = Depends(get_current_user_id),
+    company_id: str = Depends(get_current_company_id),
+    db: AsyncSession = Depends(get_db),
+) -> EscalateResponse:
+    """Create a support ticket with the last conversation messages as context."""
+    # Get last 5 messages to build context
+    result = await db.execute(
+        select(ChatMessage)
+        .where(ChatMessage.user_id == user_id, ChatMessage.company_id == company_id)
+        .order_by(ChatMessage.created_at.desc())
+        .limit(5)
+    )
+    recent = list(reversed(result.scalars().all()))
+
+    context_lines = []
+    for msg in recent:
+        context_lines.append(f"Usuario: {msg.user_message}")
+        bot_preview = (msg.bot_message or "")[:300]
+        context_lines.append(f"Bot: {bot_preview}{'...' if len(msg.bot_message or '') > 300 else ''}")
+    context = "\n".join(context_lines)
+
+    ticket = Ticket(
+        company_id=company_id,
+        user_id=user_id,
+        question=body.question,
+        priority=TicketPriority.MEDIUM,
+        notes=f"Contexto de la conversación:\n{context}" if context else None,
+    )
+    db.add(ticket)
+    await db.commit()
+    await db.refresh(ticket)
+
+    logger.info(f"[chat] Ticket #{ticket.id} creado por escalado manual, user={user_id}")
+
+    return EscalateResponse(
+        ticket_id=ticket.id,
+        message=f"Tu consulta ha sido escalada. Ticket #{ticket.id} creado — el equipo lo revisará pronto.",
+    )
+
+
+# ── GET /chat/history ────────────────────────────────────────────────────────
 
 @router.get("/history", response_model=List[ChatMessageResponse])
 async def get_chat_history(
@@ -126,22 +185,14 @@ async def get_chat_history(
     company_id: str = Depends(get_current_company_id),
     db: AsyncSession = Depends(get_db),
 ) -> List[ChatMessageResponse]:
-    """Get chat history for the current user."""
     try:
         result = await db.execute(
             select(ChatMessage)
-            .where(
-                (ChatMessage.company_id == company_id) & 
-                (ChatMessage.user_id == user_id)
-            )
+            .where(ChatMessage.company_id == company_id, ChatMessage.user_id == user_id)
             .order_by(ChatMessage.created_at.desc())
             .limit(limit)
         )
-        messages = list(result.scalars().all())
-        
-        # Reverse to show oldest first
-        messages.reverse()
-        
+        messages = list(reversed(result.scalars().all()))
         return [
             ChatMessageResponse(
                 id=msg.id,
@@ -150,12 +201,10 @@ async def get_chat_history(
                 sources=msg.sources or [],
                 confidence=msg.confidence or 0.0,
                 created_at=msg.created_at,
+                ui_hint=None,  # history messages don't show action buttons
             )
             for msg in messages
         ]
     except Exception as e:
-        logger.error(f"Error fetching chat history: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error fetching chat history.",
-        )
+        logger.error(f"[chat] Error fetching history: {e}")
+        raise HTTPException(status_code=500, detail="Error obteniendo el historial.")

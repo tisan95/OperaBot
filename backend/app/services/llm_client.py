@@ -1,300 +1,266 @@
 """LLM client for local inference with Ollama (no cloud APIs)."""
 
 import httpx
-import asyncio
 import logging
-from typing import Any, List, Dict
+from typing import Any, List, Dict, Optional
+
 from app.config import settings
-from app.models.faq import FAQ
 
 logger = logging.getLogger(__name__)
 
-# RAG configuration
 SIMILARITY_THRESHOLD = 0.60
 
+# ── Intent classification ────────────────────────────────────────────────────
 
-def _filter_by_similarity(knowledge: Dict[str, List[Dict[str, Any]]]) -> Dict[str, List[Dict[str, Any]]]:
-    """Filter knowledge results by similarity threshold.
-    
-    Args:
-        knowledge: Search results from Qdrant with 'faqs' and 'documents' keys.
-    
-    Returns:
-        Filtered knowledge keeping only results with score >= SIMILARITY_THRESHOLD.
+_GREETING_EXACT = {
+    "hola", "hi", "hello", "hey", "buenas", "buenos días", "buenos dias",
+    "buenas tardes", "buenas noches", "adiós", "adios", "hasta luego",
+    "hasta pronto", "hasta mañana", "bye", "chao", "chau", "ok", "okay",
+    "vale", "de acuerdo", "entendido", "claro", "perfecto", "muy bien",
+    "gracias", "muchas gracias", "gracias por todo", "de nada", "thanks",
+    "thank you", "np",
+}
+
+_CONFIRMATION_KW = [
+    "ya está", "ya funciona", "ya lo tengo", "ya entendí", "ya entiendo",
+    "solucionado", "resuelto", "me ha servido", "me ha ayudado",
+    "funciona ya", "ya va", "ya me funciona", "ya me sirve",
+    "está funcionando", "ya está funcionando", "perfectamente, gracias",
+    "genial, gracias", "muchas gracias, ya", "sí, ya está", "gracias, ya funciona",
+]
+
+_NEGATION_KW = [
+    "no funciona", "no me funciona", "no sirve", "no me sirve",
+    "no ayuda", "no me ayuda", "no resuelve", "no soluciona",
+    "sigue sin funcionar", "sigue igual", "no es lo que busco",
+    "tampoco funciona", "tampoco sirve", "no ha servido",
+    "no me ha ayudado", "no está funcionando", "aún no funciona",
+    "todavía no funciona", "no me ha funcionado", "no me sirve de nada",
+]
+
+
+def classify_intent(message: str) -> str:
+    """Classify user intent from the message text.
+
+    Returns one of: GREETING | CONFIRMATION | NEGATION | QUESTION
     """
+    text = message.lower().strip().rstrip("!.?")
+
+    # Exact match for short greetings / acks
+    if text in _GREETING_EXACT:
+        return "GREETING"
+
+    # Keyword match for confirmations
+    if any(kw in text for kw in _CONFIRMATION_KW):
+        return "CONFIRMATION"
+
+    # Keyword match for negations
+    if any(kw in text for kw in _NEGATION_KW):
+        return "NEGATION"
+
+    return "QUESTION"
+
+
+# ── Canned responses (no LLM, instant) ──────────────────────────────────────
+
+def greeting_response() -> Dict[str, Any]:
     return {
-        "faqs": [faq for faq in knowledge.get("faqs", []) if faq.get("score", 0) >= SIMILARITY_THRESHOLD],
-        "documents": [doc for doc in knowledge.get("documents", []) if doc.get("score", 0) >= SIMILARITY_THRESHOLD]
+        "answer": (
+            "¡Hola! Soy OperaBot, tu asistente operacional. "
+            "Puedo ayudarte a resolver dudas sobre procedimientos, "
+            "manuales y preguntas frecuentes de tu empresa. "
+            "¿En qué puedo ayudarte?"
+        ),
+        "sources": [],
+        "confidence": 1.0,
+        "ui_hint": None,
     }
 
 
-async def generate_answer_with_sources(message: str, company_id: str) -> Dict[str, Any]:
-    """Generate an answer using RAG with sources from FAQs and Documents.
+def confirmation_response() -> Dict[str, Any]:
+    return {
+        "answer": "Me alegra haberte ayudado. Si tienes alguna otra duda, aquí estaré.",
+        "sources": [],
+        "confidence": 1.0,
+        "ui_hint": None,
+    }
 
-    Args:
-        message: The user's question/message.
-        company_id: Company ID for knowledge filtering.
 
-    Returns:
-        Dict with 'answer', 'sources', and 'confidence' keys.
-    """
-    # Validate input
-    if not message or not isinstance(message, str):
-        logger.error(f"Invalid message input: {type(message)}")
-        return {
-            "answer": "I didn't understand that. Could you please try again?",
-            "sources": [],
-            "confidence": 0.0
-        }
+def negation_response() -> Dict[str, Any]:
+    return {
+        "answer": (
+            "Entendido, lamento que la respuesta no haya sido suficiente. "
+            "Puedo escalar tu consulta al equipo para que te ayuden directamente."
+        ),
+        "sources": [],
+        "confidence": 0.0,
+        "ui_hint": "escalate_prompt",
+    }
 
-    try:
-        # Search knowledge base (FAQs + Documents)
-        from app.services.qdrant_service import qdrant_service
-        
-        try:
-            logger.info(f"[RAG] Searching knowledge base for company {company_id}")
-            knowledge = await qdrant_service.search_knowledge(message, company_id, limit_per_collection=3)
-            logger.info(f"[RAG] Knowledge search returned {len(knowledge.get('faqs', []))} FAQs + {len(knowledge.get('documents', []))} documents")
-        except Exception as e:
-            logger.error(f"[RAG] Qdrant search failed: {type(e).__name__}: {e}", exc_info=True)
-            logger.warning(f"[RAG] Continuing with empty knowledge base (no FAQs/documents).")
-            knowledge = {"faqs": [], "documents": []}
-        
-        # Filter by similarity threshold
-        try:
-            logger.info(f"[RAG] Filtering results by similarity threshold (>= {SIMILARITY_THRESHOLD})")
-            knowledge = _filter_by_similarity(knowledge)
-            total_results = len(knowledge.get('faqs', [])) + len(knowledge.get('documents', []))
-            logger.info(f"[RAG] After filtering: {len(knowledge.get('faqs', []))} FAQs + {len(knowledge.get('documents', []))} documents")
-            
-            # Check if any results remain after filtering
-            if total_results == 0:
-                logger.warning(f"[RAG] No results above similarity threshold {SIMILARITY_THRESHOLD}")
-                return {
-                    "answer": "No tengo información suficiente para responder esta pregunta con confianza.",
-                    "sources": [],
-                    "confidence": 0.0
-                }
-        except Exception as e:
-            logger.error(f"[RAG] Similarity filtering failed: {type(e).__name__}: {e}", exc_info=True)
-            return {
-                "answer": "No tengo información suficiente para responder esta pregunta con confianza.",
-                "sources": [],
-                "confidence": 0.0
-            }
-        
-        # Build context from FAQs and documents
-        try:
-            logger.info(f"[RAG] Building context from {len(knowledge.get('faqs', []))} FAQs and {len(knowledge.get('documents', []))} documents")
-            context_text = _build_context(knowledge)
-            logger.info(f"[RAG] Context built: {len(context_text)} chars")
-        except Exception as e:
-            logger.error(f"[RAG] Context building failed: {type(e).__name__}: {e}", exc_info=True)
-            logger.warning(f"[RAG] Using generic context fallback")
-            context_text = "\n\nNo relevant knowledge base available. Using general knowledge."
-        
-        # Generate answer with context
-        try:
-            logger.info(f"[LLM] Starting answer generation with Ollama")
-            answer = await _generate_with_ollama(message, context_text)
-            logger.info(f"[LLM] Answer generated successfully: {len(answer)} chars")
-        except Exception as e:
-            logger.error(f"[LLM] Answer generation failed: {type(e).__name__}: {e}", exc_info=True)
-            logger.warning(f"[LLM] Using error message fallback")
-            answer = "I encountered an error generating an answer. Please try again."
-        
-        # Extract sources
-        try:
-            logger.info(f"[RAG] Extracting sources from knowledge")
-            sources = _extract_sources(knowledge)
-            logger.info(f"[RAG] Extracted {len(sources)} sources")
-        except Exception as e:
-            logger.error(f"[RAG] Source extraction failed: {type(e).__name__}: {e}", exc_info=True)
-            sources = []
-        
-        # Calculate confidence based on retrieval scores
-        try:
-            logger.info(f"[RAG] Calculating confidence score")
-            confidence = _calculate_confidence(knowledge)
-            logger.info(f"[RAG] Confidence: {confidence:.2f}")
-        except Exception as e:
-            logger.error(f"[RAG] Confidence calculation failed: {type(e).__name__}: {e}", exc_info=True)
-            confidence = 0.0
-        
-        return {
-            "answer": answer,
-            "sources": sources,
-            "confidence": confidence
-        }
-        
-    except Exception as e:
-        logger.error(f"Error generating answer with sources: {e}")
-        return {
-            "answer": "I encountered an error processing your question. Please try again.",
-            "sources": [],
-            "confidence": 0.0
-        }
+
+# ── RAG pipeline ─────────────────────────────────────────────────────────────
+
+def _filter_by_similarity(knowledge: Dict[str, List[Dict[str, Any]]]) -> Dict[str, List[Dict[str, Any]]]:
+    return {
+        "faqs": [f for f in knowledge.get("faqs", []) if f.get("score", 0) >= SIMILARITY_THRESHOLD],
+        "documents": [d for d in knowledge.get("documents", []) if d.get("score", 0) >= SIMILARITY_THRESHOLD],
+    }
 
 
 def _build_context(knowledge: Dict[str, List[Dict[str, Any]]]) -> str:
-    """Build context string from knowledge search results."""
     context = ""
-    
-    # Add FAQ context
     if knowledge.get("faqs"):
-        context += "\n\nKNOWLEDGE BASE (FAQs):\n"
+        context += "\nBASE DE CONOCIMIENTO (FAQs):\n"
         for faq in knowledge["faqs"][:3]:
-            payload = faq.get("payload", {})
-            question = payload.get("question", "")
-            answer = payload.get("answer", "")
-            if question and answer:
-                context += f"\nQ: {question}\nA: {answer}\n"
-    
-    # Add document context
+            p = faq.get("payload", {})
+            q, a = p.get("question", ""), p.get("answer", "")
+            if q and a:
+                context += f"\nPregunta: {q}\nRespuesta: {a}\n"
+
     if knowledge.get("documents"):
-        context += "\n\nREFERENCE DOCUMENTS:\n"
+        context += "\nDOCUMENTOS DE REFERENCIA:\n"
         for doc in knowledge["documents"][:3]:
-            payload = doc.get("payload", {})
-            text = payload.get("text", "")
-            filename = payload.get("filename", "unknown")
+            p = doc.get("payload", {})
+            text = p.get("text", "")
+            filename = p.get("filename", "documento")
             if text:
-                context += f"\n[{filename}]\n{text[:500]}...\n"
-    
-    return context if context.strip() else "\n\nNo relevant knowledge base available. Using general knowledge."
+                context += f"\n[{filename}]\n{text[:600]}\n"
+
+    return context.strip() or ""
 
 
 def _extract_sources(knowledge: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, str]]:
-    """Extract sources from knowledge search results."""
-    sources = []
-    
-    # Add FAQ sources
+    sources: Dict[str, Dict[str, str]] = {}
     for faq in knowledge.get("faqs", []):
-        payload = faq.get("payload", {})
-        question = payload.get("question", "")
-        if question:
-            sources.append({
-                "type": "FAQ",
-                "title": question,
-                "name": question,
-                "score": f"{faq.get('score', 0):.2f}"
-            })
-    
-    # Add document sources
+        q = faq.get("payload", {}).get("question", "")
+        if q and (q not in sources or faq.get("score", 0) > float(sources[q]["score"])):
+            sources[q] = {"type": "FAQ", "title": q, "name": q, "score": f"{faq.get('score', 0):.2f}"}
     for doc in knowledge.get("documents", []):
-        payload = doc.get("payload", {})
-        filename = payload.get("filename", "unknown")
-        sources.append({
-            "type": "Document",
-            "title": filename,
-            "name": filename,
-            "score": f"{doc.get('score', 0):.2f}"
-        })
-    
-    deduped_sources: Dict[str, Dict[str, str]] = {}
-    for source in sources:
-        name = source.get("name")
-        if not name:
-            continue
-        existing = deduped_sources.get(name)
-        if not existing or float(source["score"]) > float(existing["score"]):
-            deduped_sources[name] = source
-
-    return list(deduped_sources.values())
+        name = doc.get("payload", {}).get("filename", "unknown")
+        if name and (name not in sources or doc.get("score", 0) > float(sources[name]["score"])):
+            sources[name] = {"type": "Document", "title": name, "name": name, "score": f"{doc.get('score', 0):.2f}"}
+    return list(sources.values())
 
 
 def _calculate_confidence(knowledge: Dict[str, List[Dict[str, Any]]]) -> float:
-    """Calculate confidence score based on retrieval quality."""
-    scores = []
-    
-    for faq in knowledge.get("faqs", []):
-        scores.append(faq.get("score", 0))
-    
-    for doc in knowledge.get("documents", []):
-        scores.append(doc.get("score", 0))
-    
-    if not scores:
-        return 0.0
-    
-    avg_score = sum(scores) / len(scores)
-    # Normalize to 0-1 range (cosine similarity is already 0-1)
-    return min(max(avg_score, 0.0), 1.0)
+    scores = [f.get("score", 0) for f in knowledge.get("faqs", [])] + \
+             [d.get("score", 0) for d in knowledge.get("documents", [])]
+    return min(max(sum(scores) / len(scores), 0.0), 1.0) if scores else 0.0
 
 
 async def _generate_with_ollama(message: str, context: str) -> str:
-    """Call local Ollama to generate an answer with context.
+    """Call Ollama to generate a natural, integrated answer."""
+    system_prompt = """Eres OperaBot, asistente de conocimiento operacional de una empresa.
+Respondes preguntas basándote en la base de conocimiento proporcionada.
+
+REGLAS:
+- Responde SIEMPRE en español
+- Sé conciso: 1-3 párrafos máximo
+- Integra la información naturalmente en tu respuesta
+- Si usas un documento, menciónalo: "Según el manual de X..." o "En el documento Y se indica que..."
+- Si usas una FAQ, responde directamente sin citar la fuente explícitamente
+- NO hagas listas de fuentes al final
+- Si el contexto no cubre la pregunta, dilo con honestidad y brevedad
+- Tono: profesional pero cercano"""
+
+    if context:
+        prompt = f"{system_prompt}\n\nCONTEXTO DE LA BASE DE CONOCIMIENTO:\n{context}\n\nPREGUNTA DEL USUARIO:\n{message}\n\nRespuesta:"
+    else:
+        prompt = f"{system_prompt}\n\nPREGUNTA DEL USUARIO:\n{message}\n\nNo tengo información específica sobre esto en la base de conocimiento. Respuesta:"
+
+    if len(prompt) > 28000:
+        logger.warning("Prompt demasiado grande, truncando contexto.")
+        prompt = f"{system_prompt}\n\nCONTEXTO (truncado):\n{context[:4000]}\n\nPREGUNTA:\n{message}\n\nRespuesta:"
+
+    ollama_url = getattr(settings, "LLM_API_URL", None) or "http://localhost:11434/api/generate"
+    timeout = float(getattr(settings, "LLM_TIMEOUT_SECONDS", 120) or 120)
+
+    logger.info(f"[LLM] Generando respuesta para: '{message[:60]}'")
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.post(ollama_url, json={
+                "model": settings.LLM_MODEL,
+                "prompt": prompt,
+                "stream": False,
+            })
+        if resp.status_code != 200:
+            logger.error(f"[LLM] Ollama error {resp.status_code}: {resp.text[:200]}")
+            return "No he podido generar una respuesta. Por favor, intenta de nuevo."
+        text = resp.json().get("response", "").strip()
+        logger.info(f"[LLM] Respuesta generada: {len(text)} chars")
+        return text or "No he podido generar una respuesta. Por favor, intenta de nuevo."
+    except httpx.TimeoutException:
+        logger.error(f"[LLM] Timeout tras {timeout}s")
+        return "La generación tardó demasiado. Por favor, intenta de nuevo."
+    except httpx.ConnectError as e:
+        logger.error(f"[LLM] No se puede conectar a Ollama: {e}")
+        return "No puedo conectar con el modelo de lenguaje. Comprueba la conexión."
+    except Exception as e:
+        logger.error(f"[LLM] Error inesperado: {type(e).__name__}: {e}", exc_info=True)
+        return "Error interno. Por favor, intenta de nuevo."
+
+
+async def generate_answer_with_sources(
+    message: str,
+    company_id: str,
+    recent_rag_count: int = 0,
+) -> Dict[str, Any]:
+    """Generate a RAG answer. Called for QUESTION intents (and from tickets service).
 
     Args:
-        message: The user's question.
-        context: Retrieved context from knowledge base.
+        message: User's question.
+        company_id: Tenant isolation.
+        recent_rag_count: Number of consecutive recent RAG exchanges without resolution.
+                          Used to add a proactive follow-up after 3+ exchanges.
 
     Returns:
-        Generated answer text.
+        Dict with answer, sources, confidence, ui_hint.
     """
+    if not message or not isinstance(message, str):
+        return {"answer": "No he entendido el mensaje.", "sources": [], "confidence": 0.0, "ui_hint": None}
+
     try:
-        system_prompt = """You are OperaBot, an AI assistant for operational knowledge.
-You help users find answers to common operational questions based on a knowledge base.
-Be concise, helpful, and professional. If you do not know something, say so.
-Always cite your sources when using information from the knowledge base.
-Cuando uses información del contexto, indica la fuente al final de tu respuesta con el formato: [Fuente: nombre]"""
+        from app.services.qdrant_service import qdrant_service
+        try:
+            knowledge = await qdrant_service.search_knowledge(message, company_id, limit_per_collection=3)
+        except Exception as e:
+            logger.error(f"[RAG] Qdrant error: {e}", exc_info=True)
+            knowledge = {"faqs": [], "documents": []}
 
-        full_prompt = f"""{system_prompt}
+        knowledge = _filter_by_similarity(knowledge)
+        total = len(knowledge.get("faqs", [])) + len(knowledge.get("documents", []))
 
-{context}
+        if total == 0:
+            logger.info("[RAG] Sin resultados por encima del umbral de similitud")
+            return {
+                "answer": "No encuentro información sobre esto en nuestra base de conocimiento.",
+                "sources": [],
+                "confidence": 0.0,
+                "ui_hint": "escalate_prompt",
+            }
 
-User Question: {message}
+        context = _build_context(knowledge)
+        answer = await _generate_with_ollama(message, context)
 
-Please provide a helpful answer based on the context provided. If the context doesn't help, use your general knowledge."""
+        # After 3+ consecutive RAG exchanges, append a proactive check
+        if recent_rag_count >= 2:
+            answer += "\n\n¿Ha quedado resuelta tu consulta?"
 
-        # Limit prompt size
-        if len(full_prompt) > 30000:
-            logger.warning("Prompt too large. Truncating context.")
-            full_prompt = f"""{system_prompt}
+        sources = _extract_sources(knowledge)
+        confidence = _calculate_confidence(knowledge)
 
-User Question: {message}
-
-{context[:5000]}
-
-Please provide a helpful answer based on the context provided."""
-
-        logger.info(f"[LLM] Generating answer for: '{message[:50]}...' (prompt size: {len(full_prompt)} chars)")
-
-        ollama_url = getattr(settings, 'LLM_API_URL', None) or "http://localhost:11434/api/generate"
-        timeout = float(getattr(settings, 'LLM_TIMEOUT_SECONDS', 120) or 120)
-        
-        logger.info(f"[LLM] Ollama URL: {ollama_url}, Timeout: {timeout}s, Model: {settings.LLM_MODEL}")
-
-        payload = {
-            "model": settings.LLM_MODEL,
-            "prompt": full_prompt,
-            "stream": False,
+        return {
+            "answer": answer,
+            "sources": sources,
+            "confidence": confidence,
+            "ui_hint": "resolution_prompt",
         }
 
-        logger.info(f"[LLM] Sending request to Ollama...")
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(ollama_url, json=payload)
-            logger.info(f"[LLM] Ollama response status: {response.status_code}")
-
-        if response.status_code != 200:
-            logger.error(f"[LLM] Ollama error status {response.status_code}")
-            logger.error(f"[LLM] Response body: {response.text}")
-            return "I couldn't generate a proper answer. Please try again."
-
-        result = response.json()
-        answer_text = result.get("response", "")
-        
-        if not answer_text:
-            logger.warning("[LLM] Empty response from Ollama")
-            return "I couldn't generate a proper answer. Please try again."
-
-        logger.info(f"[LLM] Generated answer: {len(answer_text)} chars")
-        return answer_text.strip()
-
-    except httpx.TimeoutException as e:
-        logger.error(f"[LLM] Ollama timeout after {timeout}s: {e}")
-        return "The answer generation took too long. Please try again."
-    except httpx.ConnectError as e:
-        logger.error(f"[LLM] Cannot connect to Ollama at {ollama_url}: {e}")
-        return "I cannot reach the language model. Please check your connection."
     except Exception as e:
-        logger.error(f"[LLM] Unexpected error generating answer: {type(e).__name__}: {e}", exc_info=True)
-        return f"Error: {str(e)}"
+        logger.error(f"[RAG] Error general: {e}", exc_info=True)
+        return {
+            "answer": "Error procesando tu pregunta. Por favor, intenta de nuevo.",
+            "sources": [],
+            "confidence": 0.0,
+            "ui_hint": None,
+        }
