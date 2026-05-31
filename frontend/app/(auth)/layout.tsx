@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuthContext } from "@/components/Auth/AuthProvider";
+import ErrorBoundary from "@/components/Shared/ErrorBoundary";
 import Header from "@/components/Shared/Header";
 import LoadingSpinner from "@/components/Shared/LoadingSpinner";
 import Sidebar from "@/components/Shared/Sidebar";
@@ -43,14 +44,16 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#0A0A0A" }}>
-      <Header />
-      <div className="flex">
-        <Sidebar />
-        <main className="flex-1 px-6 py-8">
-          {children}
-        </main>
+    <ErrorBoundary>
+      <div className="min-h-screen" style={{ backgroundColor: "#0A0A0A" }}>
+        <Header />
+        <div className="flex">
+          <Sidebar />
+          <main className="flex-1 px-6 py-8">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }

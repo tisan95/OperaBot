@@ -27,7 +27,11 @@ export const apiFetch = async (
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const err = new Error(data.detail || data.message || "API request failed") as Error & { status: number };
+    const detail = data.detail;
+    const detailMsg = Array.isArray(detail)
+      ? detail.map((d: any) => d.msg ?? JSON.stringify(d)).join("; ")
+      : typeof detail === "string" ? detail : null;
+    const err = new Error(detailMsg || data.message || "API request failed") as Error & { status: number };
     err.status = response.status;
     throw err;
   }
