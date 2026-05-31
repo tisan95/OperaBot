@@ -4,6 +4,15 @@ import { apiFetch } from "@/lib/api";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Send, MessageSquare, CheckCircle, XCircle, ArrowUpCircle } from "lucide-react";
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface EscalationFormData {
+  intro: string;
+  questions: string[];
+  context_summary: string;
+  originalQuestion: string;
+}
+
 interface ChatMessage {
   id: number;
   user_message: string;
@@ -12,11 +21,92 @@ interface ChatMessage {
   created_at: string;
   isLoading?: boolean;
   isRateLimit?: boolean;
-  // ui_hint drives action buttons; only present on new messages (not history)
   ui_hint?: "resolution_prompt" | "escalate_prompt" | null;
+  // Escalation form embedded in the chat
+  isEscalationForm?: true;
+  escalationForm?: EscalationFormData;
+  escalationFormDone?: boolean;
 }
 
-// ── Action buttons ────────────────────────────────────────────────────────────
+// ── EscalationForm ────────────────────────────────────────────────────────────
+
+function EscalationForm({
+  msgId,
+  data,
+  done,
+  onSubmit,
+  onCancel,
+}: {
+  msgId: number;
+  data: EscalationFormData;
+  done: boolean;
+  onSubmit: (msgId: number, answers: string[]) => Promise<void>;
+  onCancel: (msgId: number) => void;
+}) {
+  const [answers, setAnswers] = useState<string[]>(data.questions.map(() => ""));
+  const [submitting, setSubmitting] = useState(false);
+
+  if (done) {
+    return (
+      <p className="text-sm" style={{ color: "#888888" }}>
+        Formulario enviado.
+      </p>
+    );
+  }
+
+  const allAnswered = answers.every((a) => a.trim().length > 0);
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm leading-relaxed" style={{ color: "#F5F5F5" }}>
+        {data.intro}
+      </p>
+
+      {data.questions.map((q, i) => (
+        <div key={i}>
+          <label className="block text-xs font-medium mb-1.5" style={{ color: "#888888" }}>
+            {q}
+          </label>
+          <textarea
+            value={answers[i]}
+            onChange={(e) => {
+              const next = [...answers];
+              next[i] = e.target.value;
+              setAnswers(next);
+            }}
+            disabled={submitting}
+            className="input w-full resize-none"
+            rows={2}
+            placeholder="Tu respuesta..."
+          />
+        </div>
+      ))}
+
+      <div className="flex gap-2">
+        <button
+          onClick={async () => {
+            setSubmitting(true);
+            await onSubmit(msgId, answers);
+            setSubmitting(false);
+          }}
+          disabled={submitting || !allAnswered}
+          className="btn btn-primary flex-1"
+        >
+          {submitting ? "Enviando..." : "Enviar y escalar"}
+        </button>
+        <button
+          onClick={() => onCancel(msgId)}
+          disabled={submitting}
+          className="btn btn-secondary"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Resolution / Escalate buttons ─────────────────────────────────────────────
 
 function ResolutionPrompt({
   msgId,
@@ -27,7 +117,7 @@ function ResolutionPrompt({
   msgId: number;
   question: string;
   onResolved: (msgId: number) => void;
-  onEscalate: (question: string) => Promise<void>;
+  onEscalate: (question: string, sourceMsgId: number) => Promise<void>;
 }) {
   const [escalating, setEscalating] = useState(false);
   return (
@@ -35,12 +125,7 @@ function ResolutionPrompt({
       <button
         onClick={() => onResolved(msgId)}
         className="btn btn-sm flex items-center gap-1.5 flex-1 justify-center"
-        style={{
-          backgroundColor: "rgba(56,161,105,0.1)",
-          borderColor: "rgba(56,161,105,0.3)",
-          color: "#38A169",
-          border: "1px solid",
-        }}
+        style={{ backgroundColor: "rgba(56,161,105,0.1)", borderColor: "rgba(56,161,105,0.3)", color: "#38A169", border: "1px solid" }}
       >
         <CheckCircle size={13} strokeWidth={2} />
         Sí, resuelto
@@ -48,19 +133,15 @@ function ResolutionPrompt({
       <button
         onClick={async () => {
           setEscalating(true);
-          await onEscalate(question);
+          await onEscalate(question, msgId);
+          setEscalating(false);
         }}
         disabled={escalating}
         className="btn btn-sm flex items-center gap-1.5 flex-1 justify-center"
-        style={{
-          backgroundColor: "rgba(229,62,62,0.08)",
-          borderColor: "rgba(229,62,62,0.25)",
-          color: "#E53E3E",
-          border: "1px solid",
-        }}
+        style={{ backgroundColor: "rgba(229,62,62,0.08)", borderColor: "rgba(229,62,62,0.25)", color: "#E53E3E", border: "1px solid" }}
       >
         <XCircle size={13} strokeWidth={2} />
-        {escalating ? "Escalando..." : "No me ha servido"}
+        {escalating ? "Preparando..." : "No me ha servido"}
       </button>
     </div>
   );
@@ -75,7 +156,7 @@ function EscalatePrompt({
   msgId: number;
   question: string;
   onDismiss: (msgId: number) => void;
-  onEscalate: (question: string) => Promise<void>;
+  onEscalate: (question: string, sourceMsgId: number) => Promise<void>;
 }) {
   const [escalating, setEscalating] = useState(false);
   return (
@@ -83,29 +164,20 @@ function EscalatePrompt({
       <button
         onClick={async () => {
           setEscalating(true);
-          await onEscalate(question);
+          await onEscalate(question, msgId);
+          setEscalating(false);
         }}
         disabled={escalating}
         className="btn btn-sm flex items-center gap-1.5 flex-1 justify-center"
-        style={{
-          backgroundColor: "rgba(201,168,76,0.1)",
-          borderColor: "rgba(201,168,76,0.3)",
-          color: "#C9A84C",
-          border: "1px solid",
-        }}
+        style={{ backgroundColor: "rgba(201,168,76,0.1)", borderColor: "rgba(201,168,76,0.3)", color: "#C9A84C", border: "1px solid" }}
       >
         <ArrowUpCircle size={13} strokeWidth={2} />
-        {escalating ? "Escalando..." : "Escalar al equipo"}
+        {escalating ? "Preparando..." : "Escalar al equipo"}
       </button>
       <button
         onClick={() => onDismiss(msgId)}
-        className="btn btn-sm flex items-center gap-1.5"
-        style={{
-          backgroundColor: "transparent",
-          borderColor: "#2A2A2A",
-          color: "#888888",
-          border: "1px solid",
-        }}
+        className="btn btn-sm"
+        style={{ backgroundColor: "transparent", borderColor: "#2A2A2A", color: "#888888", border: "1px solid" }}
       >
         No, gracias
       </button>
@@ -120,7 +192,6 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Track message IDs where the user has already acted (resolved / escalated / dismissed)
   const [actionedIds, setActionedIds] = useState<Set<number>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -133,16 +204,22 @@ export default function ChatPage() {
     try {
       const data = await apiFetch("/chat/history?limit=50");
       if (Array.isArray(data)) setMessages(data);
-    } catch {
-      // history load failure is non-critical
-    }
+    } catch { /* non-critical */ }
   };
 
   const addMessage = (msg: ChatMessage) =>
     setMessages((prev) => [...prev, msg]);
 
-  const replaceTemp = (tempId: number, replacement: Partial<ChatMessage> & { id: number }) =>
-    setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, ...replacement } : m)));
+  const replaceMsg = (id: number, patch: Partial<ChatMessage>) =>
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+
+  const removeMsg = (id: number) =>
+    setMessages((prev) => prev.filter((m) => m.id !== id));
+
+  const markActioned = (msgId: number) =>
+    setActionedIds((prev) => new Set(prev).add(msgId));
+
+  // ── Send message ──
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -153,7 +230,7 @@ export default function ChatPage() {
     setInput("");
     setLoading(true);
 
-    const tempId = Date.now() * -1; // negative to avoid collision with real IDs
+    const tempId = Date.now() * -1;
     addMessage({
       id: tempId,
       user_message: userMessage,
@@ -168,7 +245,7 @@ export default function ChatPage() {
         method: "POST",
         body: JSON.stringify({ message: userMessage }),
       });
-      replaceTemp(tempId, {
+      replaceMsg(tempId, {
         id: resp.id,
         bot_message: resp.bot_message,
         confidence: resp.confidence ?? 0,
@@ -180,7 +257,7 @@ export default function ChatPage() {
       const isRateLimit = err?.status === 429;
       const msg = err instanceof Error ? err.message : "Error al enviar el mensaje";
       if (isRateLimit) {
-        replaceTemp(tempId, {
+        replaceMsg(tempId, {
           id: Math.abs(tempId),
           bot_message: msg,
           confidence: 0,
@@ -190,19 +267,17 @@ export default function ChatPage() {
         });
       } else {
         setError(msg);
-        setMessages((prev) => prev.filter((m) => m.id !== tempId));
+        removeMsg(tempId);
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const markActioned = (msgId: number) =>
-    setActionedIds((prev) => new Set(prev).add(msgId));
+  // ── Resolved ──
 
   const handleResolved = (msgId: number) => {
     markActioned(msgId);
-    // Add a synthetic "resolved" bot message
     addMessage({
       id: Date.now(),
       user_message: "Sí, está resuelto",
@@ -212,22 +287,63 @@ export default function ChatPage() {
     });
   };
 
-  const handleEscalate = async (question: string) => {
+  // ── Escalate: step 1 — fetch questions from LLM ──
+
+  const handleEscalate = async (question: string, sourceMsgId: number) => {
+    markActioned(sourceMsgId);
+
+    const formId = Date.now() * -1;
+    addMessage({
+      id: formId,
+      user_message: "",
+      bot_message: "",
+      confidence: 0,
+      created_at: new Date().toISOString(),
+      isLoading: true,
+    });
+
+    try {
+      const data = await apiFetch("/chat/escalate-questions", { method: "POST" });
+      replaceMsg(formId, {
+        id: formId,
+        isLoading: false,
+        isEscalationForm: true,
+        escalationForm: {
+          intro: data.intro,
+          questions: data.questions,
+          context_summary: data.context_summary,
+          originalQuestion: question,
+        },
+        escalationFormDone: false,
+      });
+    } catch (err: any) {
+      removeMsg(formId);
+      setError(err.message || "Error al preparar el escalado");
+    }
+  };
+
+  // ── Escalate: step 2 — submit form with answers ──
+
+  const handleEscalationSubmit = async (formMsgId: number, answers: string[]) => {
+    const formMsg = messages.find((m) => m.id === formMsgId);
+    if (!formMsg?.escalationForm) return;
+
     try {
       const resp = await apiFetch("/chat/escalate", {
         method: "POST",
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({
+          question: formMsg.escalationForm.originalQuestion,
+          answers,
+          context_summary: formMsg.escalationForm.context_summary,
+        }),
       });
-      // Mark all pending prompts as actioned
-      setActionedIds((prev) => {
-        const next = new Set(prev);
-        messages.forEach((m) => { if (m.ui_hint) next.add(m.id); });
-        return next;
-      });
+
+      replaceMsg(formMsgId, { escalationFormDone: true });
+
       addMessage({
         id: Date.now(),
-        user_message: "Escalar mi consulta",
-        bot_message: resp.message || "Tu consulta ha sido escalada al equipo.",
+        user_message: "Enviar y escalar",
+        bot_message: resp.message || "Consulta escalada al equipo.",
         confidence: 1,
         created_at: new Date().toISOString(),
       });
@@ -236,10 +352,13 @@ export default function ChatPage() {
     }
   };
 
-  // Whether there's any unactioned resolution_prompt (for header indicator)
+  const handleEscalationCancel = (formMsgId: number) => removeMsg(formMsgId);
+
   const hasPendingPrompt = messages.some(
     (m) => m.ui_hint === "resolution_prompt" && !actionedIds.has(m.id)
   );
+
+  // ── Render ──
 
   return (
     <div
@@ -288,15 +407,17 @@ export default function ChatPage() {
 
         {messages.map((msg) => (
           <div key={msg.id} className="space-y-3 animate-fadeIn">
-            {/* User bubble */}
-            <div className="flex justify-end">
-              <div
-                className="max-w-2xl rounded-2xl rounded-br-none px-4 py-3 border"
-                style={{ backgroundColor: "#2A2000", borderColor: "rgba(201,168,76,0.25)", color: "#F5F5F5" }}
-              >
-                <p className="text-sm">{msg.user_message}</p>
+            {/* User bubble — skip for escalation form placeholder messages */}
+            {msg.user_message && !msg.isEscalationForm && (
+              <div className="flex justify-end">
+                <div
+                  className="max-w-2xl rounded-2xl rounded-br-none px-4 py-3 border"
+                  style={{ backgroundColor: "#2A2000", borderColor: "rgba(201,168,76,0.25)", color: "#F5F5F5" }}
+                >
+                  <p className="text-sm">{msg.user_message}</p>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Bot bubble */}
             <div className="flex justify-start">
@@ -309,15 +430,25 @@ export default function ChatPage() {
               >
                 {msg.isLoading ? (
                   <div className="flex items-center gap-1.5">
-                    {[0, 150, 300].map((delay) => (
+                    {[0, 150, 300].map((d) => (
                       <span
-                        key={delay}
+                        key={d}
                         className="w-1.5 h-1.5 rounded-full animate-bounce"
-                        style={{ backgroundColor: "#555555", animationDelay: `${delay}ms` }}
+                        style={{ backgroundColor: "#555555", animationDelay: `${d}ms` }}
                       />
                     ))}
-                    <span className="text-xs ml-1" style={{ color: "#888888" }}>Procesando...</span>
+                    <span className="text-xs ml-1" style={{ color: "#888888" }}>
+                      {msg.isEscalationForm ? "Analizando tu consulta..." : "Procesando..."}
+                    </span>
                   </div>
+                ) : msg.isEscalationForm && msg.escalationForm ? (
+                  <EscalationForm
+                    msgId={msg.id}
+                    data={msg.escalationForm}
+                    done={!!msg.escalationFormDone}
+                    onSubmit={handleEscalationSubmit}
+                    onCancel={handleEscalationCancel}
+                  />
                 ) : (
                   <>
                     <p
@@ -327,7 +458,6 @@ export default function ChatPage() {
                       {msg.bot_message}
                     </p>
 
-                    {/* Action buttons — only if not already actioned */}
                     {!actionedIds.has(msg.id) && msg.ui_hint === "resolution_prompt" && (
                       <ResolutionPrompt
                         msgId={msg.id}
@@ -379,11 +509,7 @@ export default function ChatPage() {
             disabled={loading}
             className="input flex-1"
           />
-          <button
-            type="submit"
-            disabled={loading || !input.trim()}
-            className="btn btn-primary gap-2"
-          >
+          <button type="submit" disabled={loading || !input.trim()} className="btn btn-primary gap-2">
             <Send size={14} strokeWidth={2} />
             {loading ? "..." : "Enviar"}
           </button>

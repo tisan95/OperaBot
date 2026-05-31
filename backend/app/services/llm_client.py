@@ -200,6 +200,73 @@ REGLAS:
         return "Error interno. Por favor, intenta de nuevo."
 
 
+_ESCALATION_FALLBACK = {
+    "intro": "Para escalar tu consulta necesito algunos datos más:",
+    "questions": [
+        "¿En qué momento exacto ocurre el problema y qué mensaje de error aparece?",
+        "¿Has probado alguna solución o reiniciado el sistema/aplicación?",
+    ],
+    "context_summary": "El usuario necesita soporte técnico.",
+}
+
+
+async def generate_escalation_questions(conversation: str) -> Dict[str, Any]:
+    """Analyze the conversation and generate 2 specific questions for the support ticket."""
+    import json, re
+
+    prompt = f"""Eres un asistente que recoge información para un ticket de soporte técnico.
+
+CONVERSACIÓN RECIENTE:
+{conversation}
+
+TAREA: Analiza el problema principal e infiere el contexto (software, hardware, proceso, correo, impresora, etc.).
+Formula exactamente 2 preguntas específicas y concretas que ayuden al técnico a resolver el problema rápido.
+Las preguntas deben ser diferentes según el tipo de problema detectado.
+
+Devuelve ÚNICAMENTE JSON válido, sin texto antes ni después:
+{{
+  "intro": "Para escalar tu consulta necesito algunos datos más:",
+  "questions": ["pregunta concreta 1", "pregunta concreta 2"],
+  "context_summary": "resumen del problema en 1 frase corta"
+}}"""
+
+    ollama_url = getattr(settings, "LLM_API_URL", None) or "http://localhost:11434/api/generate"
+    timeout = min(float(getattr(settings, "LLM_TIMEOUT_SECONDS", 60) or 60), 45)
+
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.post(ollama_url, json={
+                "model": settings.LLM_MODEL,
+                "prompt": prompt,
+                "stream": False,
+            })
+        if resp.status_code != 200:
+            logger.warning(f"[LLM] escalation questions: ollama {resp.status_code}")
+            return _ESCALATION_FALLBACK
+
+        raw = resp.json().get("response", "")
+        # Extract the first JSON object from the response
+        match = re.search(r"\{.*?\}", raw, re.DOTALL)
+        if not match:
+            return _ESCALATION_FALLBACK
+
+        data = json.loads(match.group())
+        if not all(k in data for k in ("intro", "questions", "context_summary")):
+            return _ESCALATION_FALLBACK
+        if not isinstance(data["questions"], list) or len(data["questions"]) < 1:
+            return _ESCALATION_FALLBACK
+
+        data["questions"] = [str(q) for q in data["questions"][:2]]
+        if len(data["questions"]) < 2:
+            data["questions"].append(_ESCALATION_FALLBACK["questions"][1])
+
+        return data
+
+    except Exception as e:
+        logger.error(f"[LLM] Error generating escalation questions: {e}")
+        return _ESCALATION_FALLBACK
+
+
 async def generate_answer_with_sources(
     message: str,
     company_id: str,

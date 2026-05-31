@@ -13,6 +13,7 @@ from app.api.limiter import limiter
 from app.api.schemas.chat import (
     ChatMessageRequest,
     ChatMessageResponse,
+    EscalateQuestionsResponse,
     EscalateRequest,
     EscalateResponse,
 )
@@ -22,6 +23,7 @@ from app.models.ticket import Ticket, TicketPriority
 from app.services.llm_client import (
     classify_intent,
     generate_answer_with_sources,
+    generate_escalation_questions,
     greeting_response,
     confirmation_response,
     negation_response,
@@ -131,6 +133,32 @@ async def chat_message(
         )
 
 
+# ── POST /chat/escalate-questions ────────────────────────────────────────────
+
+@router.post("/escalate-questions", response_model=EscalateQuestionsResponse)
+async def get_escalate_questions(
+    user_id: str = Depends(get_current_user_id),
+    company_id: str = Depends(get_current_company_id),
+    db: AsyncSession = Depends(get_db),
+) -> EscalateQuestionsResponse:
+    """Analyze recent conversation and return 2 specific questions for ticket enrichment."""
+    result = await db.execute(
+        select(ChatMessage)
+        .where(ChatMessage.user_id == user_id, ChatMessage.company_id == company_id)
+        .order_by(ChatMessage.created_at.desc())
+        .limit(5)
+    )
+    recent = list(reversed(result.scalars().all()))
+
+    conversation = "\n".join(
+        f"Usuario: {m.user_message}\nBot: {(m.bot_message or '')[:200]}"
+        for m in recent
+    )
+
+    data = await generate_escalation_questions(conversation)
+    return EscalateQuestionsResponse(**data)
+
+
 # ── POST /chat/escalate ──────────────────────────────────────────────────────
 
 @router.post("/escalate", response_model=EscalateResponse, status_code=status.HTTP_201_CREATED)
@@ -140,8 +168,7 @@ async def escalate_chat(
     company_id: str = Depends(get_current_company_id),
     db: AsyncSession = Depends(get_db),
 ) -> EscalateResponse:
-    """Create a support ticket with the last conversation messages as context."""
-    # Get last 5 messages to build context
+    """Create a support ticket with enriched context from the conversation."""
     result = await db.execute(
         select(ChatMessage)
         .where(ChatMessage.user_id == user_id, ChatMessage.company_id == company_id)
@@ -150,29 +177,40 @@ async def escalate_chat(
     )
     recent = list(reversed(result.scalars().all()))
 
-    context_lines = []
-    for msg in recent:
-        context_lines.append(f"Usuario: {msg.user_message}")
-        bot_preview = (msg.bot_message or "")[:300]
-        context_lines.append(f"Bot: {bot_preview}{'...' if len(msg.bot_message or '') > 300 else ''}")
-    context = "\n".join(context_lines)
+    # Build conversation context
+    conv_lines = []
+    for m in recent:
+        conv_lines.append(f"Usuario: {m.user_message}")
+        conv_lines.append(f"Bot: {(m.bot_message or '')[:300]}")
+    conversation_ctx = "\n".join(conv_lines)
+
+    # Build enriched notes
+    notes_parts = []
+    if body.context_summary:
+        notes_parts.append(f"Problema: {body.context_summary}")
+    if conversation_ctx:
+        notes_parts.append(f"Conversación reciente:\n{conversation_ctx}")
+    if body.answers:
+        notes_parts.append("Información adicional del usuario:")
+        for i, answer in enumerate(body.answers, 1):
+            notes_parts.append(f"  {i}. {answer}")
 
     ticket = Ticket(
         company_id=company_id,
         user_id=user_id,
         question=body.question,
         priority=TicketPriority.MEDIUM,
-        notes=f"Contexto de la conversación:\n{context}" if context else None,
+        notes="\n\n".join(notes_parts) if notes_parts else None,
     )
     db.add(ticket)
     await db.commit()
     await db.refresh(ticket)
 
-    logger.info(f"[chat] Ticket #{ticket.id} creado por escalado manual, user={user_id}")
+    logger.info(f"[chat] Ticket #{ticket.id} creado con contexto enriquecido, user={user_id}")
 
     return EscalateResponse(
         ticket_id=ticket.id,
-        message=f"Tu consulta ha sido escalada. Ticket #{ticket.id} creado — el equipo lo revisará pronto.",
+        message=f"Consulta escalada. Ticket #{ticket.id} creado — el equipo lo revisará pronto.",
     )
 
 
