@@ -24,9 +24,9 @@ class TicketCreateRequest(BaseModel):
 
 
 class TicketUpdateRequest(BaseModel):
-    status: Optional[TicketStatus]
-    priority: Optional[TicketPriority]
-    notes: Optional[str]
+    status: Optional[TicketStatus] = None
+    priority: Optional[TicketPriority] = None
+    notes: Optional[str] = None
 
 
 class TicketResponse(BaseModel):
