@@ -21,6 +21,17 @@ _GREETING_EXACT = {
     "thank you", "np",
 }
 
+# Individual words that are only ever part of a greeting/ack — used for
+# multi-word phrases like "hola buenos días" or "muchas gracias de nada".
+_GREETING_WORDS = frozenset({
+    "hola", "hi", "hello", "hey", "buenas", "buenos", "días", "dias",
+    "día", "dia", "tardes", "tarde", "noches", "noche", "mañana", "manana",
+    "adiós", "adios", "hasta", "luego", "pronto", "bye", "chao", "chau",
+    "ok", "okay", "vale", "gracias", "muchas", "de", "nada",
+    "thanks", "thank", "you", "np", "entendido", "claro", "perfecto",
+    "bien", "muy",
+})
+
 _CONFIRMATION_KW = [
     "ya está", "ya funciona", "ya lo tengo", "ya entendí", "ya entiendo",
     "solucionado", "resuelto", "me ha servido", "me ha ayudado",
@@ -44,10 +55,18 @@ def classify_intent(message: str) -> str:
 
     Returns one of: GREETING | CONFIRMATION | NEGATION | QUESTION
     """
+    import re as _re
     text = message.lower().strip().rstrip("!.?")
 
-    # Exact match for short greetings / acks
+    # Exact match — single-word or known multi-word greetings
     if text in _GREETING_EXACT:
+        return "GREETING"
+
+    # Word-level match for short multi-word greetings like "hola buenos días".
+    # Strip punctuation, split into words; if every word is a greeting word → GREETING.
+    clean = _re.sub(r"[,!¡¿?.]+", " ", text).strip()
+    words = clean.split()
+    if 1 <= len(words) <= 5 and all(w in _GREETING_WORDS for w in words):
         return "GREETING"
 
     # Keyword match for confirmations
