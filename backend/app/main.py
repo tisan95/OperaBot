@@ -20,7 +20,7 @@ import app.models.faq
 import app.models.chat_message
 import app.models.document
 import app.models.user  # <--- Aseguramos que el modelo de usuario esté cargado
-import app.models.ticket
+import app.models.ticket  # registers Ticket + TicketNote
 
 
 # Setup logging
