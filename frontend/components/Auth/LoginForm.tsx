@@ -36,13 +36,20 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+        <div
+          className="px-4 py-3 rounded-lg text-sm border"
+          style={{
+            backgroundColor: "rgba(229,62,62,0.08)",
+            borderColor: "rgba(229,62,62,0.3)",
+            color: "#E53E3E",
+          }}
+        >
           {error}
         </div>
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-xs font-medium mb-1.5" style={{ color: "#888888" }}>
           Company Name
         </label>
         <input
@@ -50,14 +57,14 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
           value={companyName}
           onChange={(e) => setCompanyName(e.target.value)}
           required
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className="input"
           placeholder="Your company name"
           disabled={loading}
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-xs font-medium mb-1.5" style={{ color: "#888888" }}>
           Email
         </label>
         <input
@@ -65,14 +72,14 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className="input"
           placeholder="you@example.com"
           disabled={loading}
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-xs font-medium mb-1.5" style={{ color: "#888888" }}>
           Password
         </label>
         <input
@@ -80,17 +87,13 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          className="input"
           placeholder="••••••••"
           disabled={loading}
         />
       </div>
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-blue-600 text-white font-medium py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-      >
+      <button type="submit" disabled={loading} className="btn btn-primary w-full mt-2">
         {loading ? "Logging in..." : "Login"}
       </button>
     </form>

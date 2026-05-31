@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Import custom animations */
+@import './theme.css';
 @import './animations.css';
 
 * {
@@ -16,228 +16,167 @@ html {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
-    "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans",
-    "Helvetica Neue", sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--color-secondary-lighter);
+  background-color: var(--color-bg-base);
   color: var(--color-text-primary);
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
-    monospace;
+  font-family: "JetBrains Mono", "Fira Code", Menlo, Monaco, Consolas, monospace;
 }
 
-/* Typography System */
+/* Typography */
 @layer base {
-  h1 {
-    @apply text-4xl font-bold tracking-tight;
-    color: var(--color-text-primary);
-  }
-  h2 {
-    @apply text-3xl font-bold tracking-tight;
-    color: var(--color-text-primary);
-  }
-  h3 {
-    @apply text-2xl font-semibold tracking-tight;
-    color: var(--color-text-primary);
-  }
-  h4 {
-    @apply text-xl font-semibold tracking-tight;
-    color: var(--color-text-primary);
-  }
-  h5 {
-    @apply text-lg font-semibold;
-    color: var(--color-text-primary);
-  }
-  h6 {
-    @apply text-base font-semibold;
-    color: var(--color-text-primary);
-  }
+  h1 { @apply text-4xl font-bold tracking-tight; color: var(--color-text-primary); }
+  h2 { @apply text-3xl font-bold tracking-tight; color: var(--color-text-primary); }
+  h3 { @apply text-2xl font-semibold tracking-tight; color: var(--color-text-primary); }
+  h4 { @apply text-xl font-semibold tracking-tight; color: var(--color-text-primary); }
+  h5 { @apply text-lg font-semibold; color: var(--color-text-primary); }
+  h6 { @apply text-base font-semibold; color: var(--color-text-primary); }
+  p  { @apply text-base leading-relaxed; color: var(--color-text-secondary); }
+  a  { @apply transition-colors; color: var(--color-gold); }
+  a:hover { color: var(--color-gold-bright); }
 
-  p {
-    @apply text-base leading-relaxed;
-    color: var(--color-text-secondary);
-  }
-
-  a {
-    @apply transition-colors;
-    color: var(--color-primary);
-  }
-
-  a:hover {
-    color: var(--color-primary-dark);
-  }
+  /* Scrollbar dark */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--color-bg-base); }
+  ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
 }
 
-/* Component Classes */
 @layer components {
-  /* Buttons */
+  /* ── Buttons ────────────────────────────────── */
   .btn {
-    @apply inline-flex items-center justify-center px-4 py-2.5 rounded-lg font-medium transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
-    outline-color: var(--color-primary);
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm
+           transition-all duration-150 focus-visible:outline-none focus-visible:ring-2
+           focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed;
+    --tw-ring-offset-color: var(--color-bg-base);
   }
 
+  /* Primary: fondo dorado, texto negro */
   .btn-primary {
-    @apply btn shadow-md hover:shadow-lg;
-    background-color: var(--color-primary);
-    color: white;
+    @apply btn;
+    background-color: var(--color-gold);
+    color: #0A0A0A;
+    border: 1px solid transparent;
   }
+  .btn-primary:hover:not(:disabled) { background-color: var(--color-gold-bright); }
 
-  .btn-primary:hover {
-    background-color: var(--color-primary-dark);
-  }
-
+  /* Secondary: borde gris, texto gris, hover borde dorado */
   .btn-secondary {
-    @apply border;
-    background-color: var(--color-secondary-light);
-    color: var(--color-text-primary);
-    border-color: var(--color-border);
+    @apply btn;
+    background-color: transparent;
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    border-color: var(--color-gold);
+    color: var(--color-gold);
   }
 
-  .btn-secondary:hover {
-    background-color: #cbd5e1;
-  }
-
+  /* Ghost */
   .btn-ghost {
     @apply btn;
-    color: var(--color-primary);
+    background-color: transparent;
+    color: var(--color-gold);
+    border: 1px solid transparent;
   }
+  .btn-ghost:hover:not(:disabled) { background-color: rgba(201,168,76,0.08); }
 
-  .btn-ghost:hover {
-    background-color: var(--color-primary-light);
-  }
-
+  /* Danger: borde rojo sutil */
   .btn-danger {
-    @apply btn shadow-md hover:shadow-lg;
-    background-color: var(--color-error);
-    color: white;
+    @apply btn;
+    background-color: transparent;
+    color: var(--color-error);
+    border: 1px solid rgba(229,62,62,0.3);
+  }
+  .btn-danger:hover:not(:disabled) {
+    background-color: rgba(229,62,62,0.08);
+    border-color: var(--color-error);
   }
 
-  .btn-danger:hover {
-    background-color: #dc2626;
-  }
+  .btn-sm { @apply px-3 py-1.5 text-xs; }
+  .btn-lg { @apply px-6 py-3 text-base; }
 
-  .btn-sm {
-    @apply px-3 py-1.5 text-sm;
-  }
-
-  .btn-lg {
-    @apply px-6 py-3 text-lg;
-  }
-
-  /* Form Inputs */
+  /* ── Inputs ─────────────────────────────────── */
   .input {
-    @apply w-full px-4 py-2.5 rounded-lg bg-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:border-transparent disabled:cursor-not-allowed;
+    @apply w-full px-4 py-2.5 rounded-lg text-sm transition-all duration-150
+           focus:outline-none disabled:cursor-not-allowed;
+    background-color: var(--color-bg-card);
     border: 1px solid var(--color-border);
     color: var(--color-text-primary);
   }
+  .input::placeholder { color: var(--color-text-muted); }
+  .input:focus { border-color: var(--color-gold); box-shadow: 0 0 0 1px var(--color-gold); }
+  .input:disabled { opacity: 0.5; }
+  .input-error:focus { border-color: var(--color-error); box-shadow: 0 0 0 1px var(--color-error); }
 
-  .input::placeholder {
-    color: var(--color-text-tertiary);
-  }
-
-  .input:disabled {
-    background-color: var(--color-secondary-light);
-  }
-
-  .input:focus {
-    border-color: transparent;
-    --tw-ring-color: var(--color-primary);
-  }
-
-  .input-error:focus {
-    --tw-ring-color: var(--color-error);
-  }
-
-  /* Cards */
+  /* ── Cards ──────────────────────────────────── */
   .card {
-    @apply rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200;
-    background-color: white;
+    @apply rounded-xl transition-shadow duration-200;
+    background-color: var(--color-bg-card);
     border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
   }
+  .card:hover { box-shadow: var(--shadow-md); }
+  .card-padding { @apply p-6; }
 
-  .card-padding {
-    @apply p-6;
-  }
-
-  /* Chat Messages */
-  .chat-bubble {
-    @apply rounded-2xl px-4 py-3 max-w-xs lg:max-w-md break-words shadow-sm;
-  }
-
-  .chat-bubble-user {
-    @apply chat-bubble rounded-br-none;
-    background-color: var(--color-primary);
-    color: white;
-  }
-
-  .chat-bubble-bot {
-    @apply chat-bubble rounded-bl-none;
-    background-color: var(--color-secondary-light);
-    color: var(--color-text-primary);
-    border: 1px solid var(--color-border);
-  }
-
-  .chat-bubble-fallback {
-    @apply chat-bubble rounded-bl-none border;
-    background-color: rgba(245, 158, 11, 0.1);
-    color: var(--color-warning);
-    border-color: rgba(245, 158, 11, 0.3);
-  }
-
-  /* Loading States */
-  .loading-spinner {
-    @apply inline-block animate-spin;
-  }
-
-  .loading-pulse {
-    @apply animate-pulse;
-  }
-
-  /* Containers */
-  .container-max {
-    @apply max-w-7xl mx-auto;
-  }
-
-  .container-md {
-    @apply max-w-2xl mx-auto;
-  }
-
-  .divider {
-    @apply border-t;
-    border-color: var(--color-border);
-  }
-
-  /* Badges */
+  /* ── Badges ─────────────────────────────────── */
   .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium;
   }
-
   .badge-primary {
     @apply badge;
-    background-color: var(--color-primary-light);
-    color: var(--color-primary);
+    background-color: rgba(201,168,76,0.12);
+    color: var(--color-gold);
+    border: 1px solid rgba(201,168,76,0.25);
   }
-
   .badge-success {
     @apply badge;
-    background-color: #d1fae5;
+    background-color: rgba(56,161,105,0.1);
     color: var(--color-success);
+    border: 1px solid rgba(56,161,105,0.2);
   }
-
   .badge-warning {
     @apply badge;
-    background-color: #fef3c7;
-    color: var(--color-warning);
+    background-color: rgba(201,168,76,0.1);
+    color: var(--color-gold);
+    border: 1px solid rgba(201,168,76,0.2);
   }
-
   .badge-error {
     @apply badge;
-    background-color: #fee2e2;
+    background-color: rgba(229,62,62,0.1);
     color: var(--color-error);
+    border: 1px solid rgba(229,62,62,0.2);
   }
-}
 
+  /* ── Chat bubbles ───────────────────────────── */
+  .chat-bubble { @apply rounded-2xl px-4 py-3 max-w-xs lg:max-w-md break-words; }
+  .chat-bubble-user {
+    @apply chat-bubble rounded-br-none;
+    background-color: var(--color-gold-dim);
+    color: var(--color-text-primary);
+    border: 1px solid rgba(201,168,76,0.25);
+  }
+  .chat-bubble-bot {
+    @apply chat-bubble rounded-bl-none;
+    background-color: var(--color-bg-card);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+  }
+  .chat-bubble-fallback {
+    @apply chat-bubble rounded-bl-none;
+    background-color: rgba(201,168,76,0.06);
+    color: var(--color-gold);
+    border: 1px solid rgba(201,168,76,0.2);
+  }
+
+  /* ── Misc ───────────────────────────────────── */
+  .loading-spinner { @apply inline-block animate-spin; }
+  .loading-pulse   { @apply animate-pulse; }
+  .container-max   { @apply max-w-7xl mx-auto; }
+  .container-md    { @apply max-w-2xl mx-auto; }
+  .divider         { @apply border-t; border-color: var(--color-border); }
+}

@@ -2,13 +2,10 @@
 
 import { apiFetch } from "@/lib/api";
 import { FAQ } from "@/lib/types";
-import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
-// IMPORTAMOS EL CONTEXTO
 import { useAuthContext } from "@/components/Auth/AuthProvider";
 
 export default function FAQPage() {
-  // EXTRAEMOS EL USUARIO
   const { user } = useAuthContext();
   const isAdmin = user?.role === "admin" || user?.role === "super_admin";
 
@@ -57,14 +54,8 @@ export default function FAQPage() {
     setError(null);
 
     try {
-      await apiFetch(`/faqs/${faqId}`, {
-        method: "DELETE",
-      });
-
-      // Remove from UI immediately
+      await apiFetch(`/faqs/${faqId}`, { method: "DELETE" });
       setFaqs(faqs.filter((faq) => faq.id !== faqId));
-      
-      // If we were editing this FAQ, reset the form
       if (editingFaqId === faqId) {
         resetForm();
       }
@@ -125,198 +116,204 @@ export default function FAQPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="border-b bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div>
-            <Link
-              href="/dashboard"
-              className="text-sm text-sky-600 hover:underline"
-            >
-              ← Back to dashboard
-            </Link>
-            <h1 className="mt-2 text-3xl font-semibold text-slate-900">
-              FAQ Browser
-            </h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Browse, add, and maintain your operational knowledge.
-            </p>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight" style={{ color: "#F5F5F5" }}>
+          FAQs
+        </h1>
+        <p className="text-sm mt-1" style={{ color: "#888888" }}>
+          Explora, añade y mantén el conocimiento operacional.
+        </p>
+      </div>
+
+      <div className={`grid gap-6 ${isAdmin ? "lg:grid-cols-[1.6fr_1fr]" : "grid-cols-1"}`}>
+        {/* Table */}
+        <div className="card overflow-hidden">
+          <div
+            className="flex items-center justify-between border-b px-6 py-4"
+            style={{ borderColor: "#2A2A2A" }}
+          >
+            <h2 className="text-sm font-semibold" style={{ color: "#F5F5F5" }}>
+              Preguntas frecuentes
+            </h2>
+            <span className="badge-primary">{faqs.length}</span>
           </div>
-        </div>
-      </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-8">
-        {/* MAGIA AQUÍ: Si es admin divide en 2 columnas, si no, usa solo 1 */}
-        <div className={`grid gap-6 ${isAdmin ? 'lg:grid-cols-[1.6fr_1fr]' : 'lg:grid-cols-1'}`}>
-          
-          <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-              <h2 className="text-lg font-semibold text-slate-900">FAQs</h2>
-            </div>
-
-            <div className="px-6 py-4">
-              {loading ? (
-                <p className="text-slate-600">Loading FAQs...</p>
-              ) : error ? (
-                <p className="text-red-600">{error}</p>
-              ) : faqs.length === 0 ? (
-                <p className="text-slate-600">No FAQs found yet.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-slate-200 text-sm">
-                    <thead className="bg-slate-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
-                          Question
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
-                          Answer
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
-                          Category
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
-                          Created
-                        </th>
-                        {/* Ocultamos cabecera de Acciones si no es admin */}
-                        {isAdmin && (
-                          <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
-                            Actions
+          <div className="px-6 py-4">
+            {loading ? (
+              <p className="text-sm" style={{ color: "#888888" }}>
+                Cargando FAQs...
+              </p>
+            ) : error ? (
+              <p className="text-sm" style={{ color: "#E53E3E" }}>
+                {error}
+              </p>
+            ) : faqs.length === 0 ? (
+              <p className="text-sm" style={{ color: "#888888" }}>
+                No hay FAQs todavía.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid #2A2A2A" }}>
+                      {["Pregunta", "Respuesta", "Categoría", ...(isAdmin ? ["Acciones"] : [])].map(
+                        (col) => (
+                          <th
+                            key={col}
+                            className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider"
+                            style={{ color: "#888888", backgroundColor: "#111111" }}
+                          >
+                            {col}
                           </th>
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 bg-white">
-                      {faqs.map((faq) => (
-                        <tr key={faq.id}>
-                          <td className="px-4 py-3 align-top text-slate-900">
-                            {faq.question}
-                          </td>
-                          <td className="px-4 py-3 align-top text-slate-700">
-                            {faq.answer}
-                          </td>
-                          <td className="px-4 py-3 align-top text-slate-700">
-                            {faq.category || "General"}
-                          </td>
-                          <td className="px-4 py-3 align-top text-slate-500">
-                            {new Date(faq.created_at).toLocaleString()}
-                          </td>
-                          {/* Ocultamos los botones de editar/borrar si no es admin */}
-                          {isAdmin && (
-                            <td className="px-4 py-3 align-top text-right space-x-3">
+                        )
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {faqs.map((faq) => (
+                      <tr
+                        key={faq.id}
+                        style={{ borderBottom: "1px solid #2A2A2A", transition: "background 0.1s" }}
+                        onMouseEnter={(e) =>
+                          ((e.currentTarget as HTMLTableRowElement).style.backgroundColor = "#222222")
+                        }
+                        onMouseLeave={(e) =>
+                          ((e.currentTarget as HTMLTableRowElement).style.backgroundColor = "transparent")
+                        }
+                      >
+                        <td className="px-4 py-3 align-top" style={{ color: "#F5F5F5" }}>
+                          {faq.question}
+                        </td>
+                        <td className="px-4 py-3 align-top" style={{ color: "#888888" }}>
+                          {faq.answer}
+                        </td>
+                        <td className="px-4 py-3 align-top" style={{ color: "#888888" }}>
+                          {faq.category || "General"}
+                        </td>
+                        {isAdmin && (
+                          <td className="px-4 py-3 align-top">
+                            <div className="flex gap-3">
                               <button
                                 type="button"
                                 onClick={() => handleEditClick(faq)}
-                                className="text-sm font-medium text-sky-600 hover:text-sky-800"
+                                className="text-xs font-medium transition-colors"
+                                style={{ color: "#C9A84C" }}
+                                onMouseEnter={(e) =>
+                                  ((e.currentTarget as HTMLButtonElement).style.color = "#E0B85C")
+                                }
+                                onMouseLeave={(e) =>
+                                  ((e.currentTarget as HTMLButtonElement).style.color = "#C9A84C")
+                                }
                               >
-                                Edit
+                                Editar
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDeleteClick(faq.id, faq.question)}
                                 disabled={deleting === faq.id}
-                                className="text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
+                                className="text-xs font-medium transition-colors disabled:opacity-50"
+                                style={{ color: "#E53E3E" }}
                               >
-                                {deleting === faq.id ? "Deleting..." : "Delete"}
+                                {deleting === faq.id ? "Borrando..." : "Eliminar"}
                               </button>
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Form — solo admin */}
+        {isAdmin && (
+          <div className="card h-fit">
+            <div
+              className="flex items-center justify-between border-b px-6 py-4"
+              style={{ borderColor: "#2A2A2A" }}
+            >
+              <h2 className="text-sm font-semibold" style={{ color: "#F5F5F5" }}>
+                {editingFaqId ? "Editar FAQ" : "Añadir FAQ"}
+              </h2>
+              {editingFaqId && (
+                <button type="button" onClick={resetForm} className="btn-secondary btn-sm">
+                  Cancelar
+                </button>
               )}
             </div>
-          </section>
 
-          {/* Ocultamos el bloque de creación entero si no es admin */}
-          {isAdmin && (
-            <section className="rounded-xl border border-slate-200 bg-white shadow-sm h-fit">
-              <div className="border-b border-slate-100 px-6 py-4">
-                <div className="flex items-center justify-between gap-4">
-                  <h2 className="text-lg font-semibold text-slate-900">
-                    {editingFaqId ? "Edit FAQ" : "Add FAQ"}
-                  </h2>
-                  {editingFaqId ? (
-                    <button
-                      type="button"
-                      onClick={resetForm}
-                      className="rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-700 hover:bg-slate-200"
-                    >
-                      Cancel edit
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-              <div className="px-6 py-4">
-                <form className="space-y-4" onSubmit={handleSubmit}>
-                  <div>
-                    <label
-                      className="mb-1 block text-sm font-medium text-slate-700"
-                      htmlFor="question"
-                    >
-                      Question
-                    </label>
-                    <input
-                      id="question"
-                      value={question}
-                      onChange={(event) => setQuestion(event.target.value)}
-                      className="block w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500"
-                      placeholder="Enter a common question"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      className="mb-1 block text-sm font-medium text-slate-700"
-                      htmlFor="answer"
-                    >
-                      Answer
-                    </label>
-                    <textarea
-                      id="answer"
-                      value={answer}
-                      onChange={(event) => setAnswer(event.target.value)}
-                      className="block w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500"
-                      rows={4}
-                      placeholder="Enter the answer"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      className="mb-1 block text-sm font-medium text-slate-700"
-                      htmlFor="category"
-                    >
-                      Category
-                    </label>
-                    <input
-                      id="category"
-                      value={category}
-                      onChange={(event) => setCategory(event.target.value)}
-                      className="block w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-sky-500 focus:ring-sky-500"
-                      placeholder="Optional category"
-                    />
-                  </div>
-
-                  {error && (
-                    <p className="text-sm text-red-600">{error}</p>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="inline-flex w-full items-center justify-center rounded-md bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-sky-300"
+            <div className="px-6 py-4">
+              <form className="space-y-4" onSubmit={handleSubmit}>
+                <div>
+                  <label
+                    className="block text-xs font-medium mb-1.5"
+                    style={{ color: "#888888" }}
+                    htmlFor="question"
                   >
-                    {saving ? "Saving..." : editingFaqId ? "Save changes" : "Create FAQ"}
-                  </button>
-                </form>
-              </div>
-            </section>
-          )}
-        </div>
-      </main>
+                    Pregunta
+                  </label>
+                  <input
+                    id="question"
+                    value={question}
+                    onChange={(event) => setQuestion(event.target.value)}
+                    className="input"
+                    placeholder="Escribe la pregunta"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    className="block text-xs font-medium mb-1.5"
+                    style={{ color: "#888888" }}
+                    htmlFor="answer"
+                  >
+                    Respuesta
+                  </label>
+                  <textarea
+                    id="answer"
+                    value={answer}
+                    onChange={(event) => setAnswer(event.target.value)}
+                    className="input"
+                    rows={4}
+                    placeholder="Escribe la respuesta"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    className="block text-xs font-medium mb-1.5"
+                    style={{ color: "#888888" }}
+                    htmlFor="category"
+                  >
+                    Categoría
+                  </label>
+                  <input
+                    id="category"
+                    value={category}
+                    onChange={(event) => setCategory(event.target.value)}
+                    className="input"
+                    placeholder="Categoría (opcional)"
+                  />
+                </div>
+
+                {error && (
+                  <p className="text-xs" style={{ color: "#E53E3E" }}>
+                    {error}
+                  </p>
+                )}
+
+                <button type="submit" disabled={saving} className="btn btn-primary w-full">
+                  {saving ? "Guardando..." : editingFaqId ? "Guardar cambios" : "Crear FAQ"}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

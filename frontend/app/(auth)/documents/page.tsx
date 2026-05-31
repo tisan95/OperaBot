@@ -1,8 +1,10 @@
 "use client";
+
 import { apiFetch } from "@/lib/api";
 import { useAuthContext } from "@/components/Auth/AuthProvider";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
+import { UploadCloud, FileText, Trash2 } from "lucide-react";
 
 export default function DocumentsPage() {
   const { user } = useAuthContext();
@@ -20,7 +22,9 @@ export default function DocumentsPage() {
     if (user && !isAdmin) router.push("/dashboard");
   }, [user, isAdmin, router]);
 
-  useEffect(() => { loadDocuments(); }, []);
+  useEffect(() => {
+    loadDocuments();
+  }, []);
 
   if (user && !isAdmin) return null;
 
@@ -29,7 +33,11 @@ export default function DocumentsPage() {
     try {
       const data = await apiFetch("/documents/");
       if (Array.isArray(data)) setDocuments(data);
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleUpload = async (e: FormEvent) => {
@@ -52,11 +60,11 @@ export default function DocumentsPage() {
       alert("Documento subido exitosamente");
     } catch (err: any) {
       console.error("Error capturado:", err);
-      
+
       let mensajeFinal = "Error desconocido";
-      
+
       if (err.detail) {
-        mensajeFinal = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail);
+        mensajeFinal = typeof err.detail === "string" ? err.detail : JSON.stringify(err.detail);
       } else if (err.message) {
         mensajeFinal = err.message;
       } else {
@@ -76,16 +84,14 @@ export default function DocumentsPage() {
 
     setDeleting(docId);
     try {
-      await apiFetch(`/documents/${docId}`, {
-        method: "DELETE",
-      });
+      await apiFetch(`/documents/${docId}`, { method: "DELETE" });
       loadDocuments();
     } catch (err: any) {
       console.error("Error al eliminar:", err);
       let mensajeFinal = "Error desconocido";
-      
+
       if (err.detail) {
-        mensajeFinal = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail);
+        mensajeFinal = typeof err.detail === "string" ? err.detail : JSON.stringify(err.detail);
       } else if (err.message) {
         mensajeFinal = err.message;
       } else {
@@ -98,77 +104,144 @@ export default function DocumentsPage() {
     }
   };
 
+  const statusBadge = (status: string) => {
+    if (status === "completed") return "badge-success";
+    if (status === "processing") return "badge-warning";
+    return "badge-error";
+  };
+
   return (
-    <div className="p-8 space-y-6">
-      <div className="bg-white p-8 rounded-xl border-2 border-slate-100 shadow-sm max-w-2xl">
-        <h2 className="text-2xl font-bold mb-6 text-slate-800 flex items-center gap-2">
-          <span>📤</span> Subir Documento
+    <div className="space-y-6 max-w-2xl">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight" style={{ color: "#F5F5F5" }}>
+          Documentos
+        </h1>
+        <p className="text-sm mt-1" style={{ color: "#888888" }}>
+          Sube PDFs para vectorizarlos en la base de conocimiento.
+        </p>
+      </div>
+
+      {/* Upload card */}
+      <div className="card card-padding">
+        <h2 className="text-sm font-semibold mb-4" style={{ color: "#F5F5F5" }}>
+          Subir Documento
         </h2>
-        
+
         <form onSubmit={handleUpload} className="space-y-4">
-          <div className="group relative border-2 border-dashed border-slate-300 rounded-2xl p-12 text-center hover:border-indigo-500 hover:bg-indigo-50/30 transition-all cursor-pointer">
-            <input 
-              type="file" 
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+          <label
+            className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-10 cursor-pointer transition-colors"
+            style={{ borderColor: selectedFile ? "#C9A84C" : "#2A2A2A" }}
+            onMouseEnter={(e) =>
+              ((e.currentTarget as HTMLLabelElement).style.borderColor = "#C9A84C")
+            }
+            onMouseLeave={(e) =>
+              ((e.currentTarget as HTMLLabelElement).style.borderColor = selectedFile ? "#C9A84C" : "#2A2A2A")
+            }
+          >
+            <input
+              type="file"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               accept=".pdf"
               onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
             />
-            <div className="space-y-3">
-              <div className="text-5xl">📄</div>
-              <p className="text-lg font-semibold text-slate-700">
-                {selectedFile ? selectedFile.name : "Selecciona tu documento o manual (PDF)"}
-              </p>
-              <p className="text-sm text-slate-500 italic">Haz clic aquí para buscar el archivo</p>
-            </div>
-          </div>
+            <UploadCloud
+              size={32}
+              strokeWidth={1.5}
+              style={{ color: selectedFile ? "#C9A84C" : "#555555" }}
+            />
+            <p className="text-sm font-medium mt-3" style={{ color: "#F5F5F5" }}>
+              {selectedFile ? selectedFile.name : "Selecciona un PDF"}
+            </p>
+            <p className="text-xs mt-1" style={{ color: "#555555" }}>
+              Haz clic para buscar el archivo
+            </p>
+          </label>
 
-          <button 
-            disabled={!selectedFile || uploading} 
-            className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:bg-indigo-700 disabled:bg-slate-300 disabled:shadow-none transition-all active:scale-[0.98]"
+          <button
+            type="submit"
+            disabled={!selectedFile || uploading}
+            className="btn btn-primary w-full"
           >
             {uploading ? "Procesando..." : "Subir Documento"}
           </button>
         </form>
 
         {error && (
-          <div className="mt-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg">
-            <p className="text-red-800 font-bold mb-1">Error:</p>
-            <p className="text-red-700 font-mono text-xs break-all">{error}</p>
+          <div
+            className="mt-4 px-4 py-3 rounded-lg border text-sm"
+            style={{
+              backgroundColor: "rgba(229,62,62,0.08)",
+              borderColor: "rgba(229,62,62,0.3)",
+              color: "#E53E3E",
+            }}
+          >
+            <p className="font-semibold mb-1">Error</p>
+            <p className="font-mono text-xs break-all">{error}</p>
           </div>
         )}
       </div>
 
-      <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
-        <h3 className="font-bold text-slate-700 mb-4">Documentos en el sistema:</h3>
-        <div className="grid gap-2">
+      {/* Documents list */}
+      <div className="card overflow-hidden">
+        <div
+          className="border-b px-6 py-4"
+          style={{ borderColor: "#2A2A2A" }}
+        >
+          <h2 className="text-sm font-semibold" style={{ color: "#F5F5F5" }}>
+            Documentos en el sistema
+          </h2>
+        </div>
+
+        <div className="p-4 space-y-2">
           {loading ? (
-            <p className="text-slate-400 text-sm">Cargando documentos...</p>
+            <p className="text-sm px-2" style={{ color: "#888888" }}>
+              Cargando documentos...
+            </p>
           ) : documents.length === 0 ? (
-            <p className="text-slate-400 text-sm italic">No hay documentos aún.</p>
+            <p className="text-sm px-2 italic" style={{ color: "#555555" }}>
+              No hay documentos aún.
+            </p>
           ) : (
-            documents.map(doc => (
-              <div key={doc.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200 text-sm group">
-                <div className="flex-1">
-                  <span className="font-medium block">{doc.filename}</span>
-                  <span className="text-xs text-slate-500">{doc.file_size && `${(doc.file_size / 1024).toFixed(1)} KB`} • {doc.vector_count || 0} vectores</span>
+            documents.map((doc) => (
+              <div
+                key={doc.id}
+                className="flex items-center justify-between px-4 py-3 rounded-lg border transition-colors"
+                style={{ borderColor: "#2A2A2A", backgroundColor: "#111111" }}
+                onMouseEnter={(e) =>
+                  ((e.currentTarget as HTMLDivElement).style.backgroundColor = "#161616")
+                }
+                onMouseLeave={(e) =>
+                  ((e.currentTarget as HTMLDivElement).style.backgroundColor = "#111111")
+                }
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <FileText size={15} strokeWidth={1.5} style={{ color: "#C9A84C", flexShrink: 0 }} />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: "#F5F5F5" }}>
+                      {doc.filename}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: "#555555" }}>
+                      {doc.file_size ? `${(doc.file_size / 1024).toFixed(1)} KB` : ""}{" "}
+                      {doc.vector_count ? `· ${doc.vector_count} vectores` : ""}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${
-                    doc.upload_status === 'completed' 
-                      ? 'bg-green-100 text-green-700' 
-                      : doc.upload_status === 'processing'
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'bg-red-100 text-red-700'
-                  }`}>
+
+                <div className="flex items-center gap-3 shrink-0 ml-4">
+                  <span className={statusBadge(doc.upload_status)}>
                     {doc.upload_status}
                   </span>
                   <button
                     onClick={() => handleDelete(doc.id, doc.filename)}
                     disabled={deleting === doc.id}
-                    className="px-2 py-1 text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                    className="btn btn-danger btn-sm px-2 py-1"
                     title="Eliminar documento"
                   >
-                    {deleting === doc.id ? "..." : "🗑️"}
+                    {deleting === doc.id ? (
+                      <span className="text-xs">...</span>
+                    ) : (
+                      <Trash2 size={13} strokeWidth={1.75} />
+                    )}
                   </button>
                 </div>
               </div>

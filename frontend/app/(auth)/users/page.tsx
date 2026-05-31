@@ -2,29 +2,26 @@
 
 import { apiFetch } from "@/lib/api";
 import { useEffect, useState } from "react";
-// Importamos el contexto y el enrutador para la seguridad
 import { useAuthContext } from "@/components/Auth/AuthProvider";
 import { useRouter } from "next/navigation";
+import { Trash2, X } from "lucide-react";
 
 export default function UsersPage() {
-  // Extraemos el usuario actual y la función para redirigir
   const { user } = useAuthContext();
   const router = useRouter();
 
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingRoles, setPendingRoles] = useState<Record<string, string>>({});
-  
-  // Estados para el Modal
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    role: "user"
+    role: "user",
   });
 
-  // Solo super_admin puede gestionar usuarios
   useEffect(() => {
     if (user && user.role !== "super_admin") {
       router.push("/dashboard");
@@ -46,7 +43,6 @@ export default function UsersPage() {
     loadUsers();
   }, []);
 
-  // Función para CREAR usuario
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -55,7 +51,6 @@ export default function UsersPage() {
         method: "POST",
         body: JSON.stringify(formData),
       });
-      // Si va bien: cerramos modal, limpiamos formulario y recargamos tabla
       setIsModalOpen(false);
       setFormData({ email: "", password: "", role: "user" });
       loadUsers();
@@ -64,13 +59,13 @@ export default function UsersPage() {
     }
   };
 
-  // Función para ELIMINAR usuario
   const handleDeleteUser = async (id: string) => {
-    if (!window.confirm("¿Estás seguro de que quieres eliminar este usuario permanentemente?")) return;
-    
+    if (!window.confirm("¿Estás seguro de que quieres eliminar este usuario permanentemente?"))
+      return;
+
     try {
       await apiFetch(`/users/${id}`, { method: "DELETE" });
-      loadUsers(); // Recargamos la tabla
+      loadUsers();
     } catch (err: any) {
       alert(err.message || "Error al eliminar el usuario");
     }
@@ -94,73 +89,101 @@ export default function UsersPage() {
     }
   };
 
-  // Si no es admin, devolvemos null temporalmente para que no haya un "destello" visual antes de la redirección
   if (user && user.role !== "super_admin") return null;
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">Gestión de Usuarios</h1>
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
-        >
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: "#F5F5F5" }}>
+            Gestión de Usuarios
+          </h1>
+          <p className="text-sm mt-1" style={{ color: "#888888" }}>
+            Aprueba, gestiona y elimina usuarios.
+          </p>
+        </div>
+        <button onClick={() => setIsModalOpen(true)} className="btn btn-primary">
           + Nuevo Usuario
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow border border-slate-200">
-        <table className="w-full text-left">
-          <thead className="bg-slate-50 border-b border-slate-200">
+      {/* Table */}
+      <div className="card overflow-hidden">
+        <table className="w-full text-sm">
+          <thead style={{ borderBottom: "1px solid #2A2A2A" }}>
             <tr>
-              <th className="px-6 py-4 font-semibold text-slate-600">Email</th>
-              <th className="px-6 py-4 font-semibold text-slate-600">Rol</th>
-              <th className="px-6 py-4 font-semibold text-slate-600">Estado</th>
-              <th className="px-6 py-4 font-semibold text-slate-600">Acciones</th>
+              {["Email", "Rol", "Estado", "Acciones"].map((col) => (
+                <th
+                  key={col}
+                  className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider"
+                  style={{ color: "#888888", backgroundColor: "#111111" }}
+                >
+                  {col}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={4} className="p-6 text-center">Cargando...</td></tr>
+              <tr>
+                <td
+                  colSpan={4}
+                  className="px-6 py-6 text-center text-sm"
+                  style={{ color: "#888888" }}
+                >
+                  Cargando...
+                </td>
+              </tr>
             ) : (
               users.map((u: any) => (
-                <tr key={u.id} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="px-6 py-4">{u.email}</td>
+                <tr
+                  key={u.id}
+                  style={{ borderBottom: "1px solid #2A2A2A", transition: "background 0.1s" }}
+                  onMouseEnter={(e) =>
+                    ((e.currentTarget as HTMLTableRowElement).style.backgroundColor = "#1E1E1E")
+                  }
+                  onMouseLeave={(e) =>
+                    ((e.currentTarget as HTMLTableRowElement).style.backgroundColor = "transparent")
+                  }
+                >
+                  <td className="px-6 py-4" style={{ color: "#F5F5F5" }}>
+                    {u.email}
+                  </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded text-xs uppercase font-bold ${u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                      {u.role}
+                    <span className="badge-primary">{u.role}</span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span
+                      className={u.status === "active" ? "badge-success" : "badge-warning"}
+                    >
+                      {u.status || "pendiente"}
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded text-xs uppercase font-bold ${u.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                      {u.status || 'pendiente'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 space-y-2">
-                    {u.status === 'pending' ? (
-                      <div className="space-y-2">
+                    {u.status === "pending" ? (
+                      <div className="space-y-2 max-w-[180px]">
                         <select
-                          value={pendingRoles[u.id] || u.role || 'user'}
+                          value={pendingRoles[u.id] || u.role || "user"}
                           onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                          className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                          className="input text-xs py-1.5"
                         >
                           <option value="user">Usuario</option>
                           <option value="admin">Administrador</option>
                         </select>
                         <button
                           onClick={() => handleApproveUser(u.id)}
-                          className="w-full bg-emerald-600 text-white px-3 py-2 rounded-lg hover:bg-emerald-700 transition"
+                          className="btn btn-primary btn-sm w-full"
                         >
                           Aprobar
                         </button>
                       </div>
                     ) : (
-                      <button 
+                      <button
                         onClick={() => handleDeleteUser(u.id)}
-                        className="text-red-500 hover:text-red-700 transition"
+                        className="btn btn-danger btn-sm px-2 py-1"
                         title="Eliminar usuario"
                       >
-                        🗑️
+                        <Trash2 size={13} strokeWidth={1.75} />
                       </button>
                     )}
                   </td>
@@ -171,59 +194,86 @@ export default function UsersPage() {
         </table>
       </div>
 
-      {/* MODAL EMERGENTE PARA CREAR USUARIO */}
+      {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-8 w-full max-w-md shadow-2xl">
-            <h2 className="text-xl font-bold mb-4">Crear Nuevo Usuario</h2>
-            
-            {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm">{error}</div>}
-            
+        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: "rgba(0,0,0,0.7)" }}>
+          <div className="card card-padding w-full max-w-md rounded-2xl relative">
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              className="absolute top-4 right-4 btn-ghost p-1"
+            >
+              <X size={16} strokeWidth={1.75} />
+            </button>
+
+            <h2 className="text-base font-semibold mb-5" style={{ color: "#F5F5F5" }}>
+              Crear Nuevo Usuario
+            </h2>
+
+            {error && (
+              <div
+                className="px-4 py-3 rounded-lg border text-sm mb-4"
+                style={{
+                  backgroundColor: "rgba(229,62,62,0.08)",
+                  borderColor: "rgba(229,62,62,0.3)",
+                  color: "#E53E3E",
+                }}
+              >
+                {error}
+              </div>
+            )}
+
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                <input 
-                  type="email" required
-                  className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "#888888" }}>
+                  Email
+                </label>
+                <input
+                  type="email"
+                  required
+                  className="input"
                   value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Contraseña (mín 6 char)</label>
-                <input 
-                  type="password" required minLength={6}
-                  className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none"
-                  value={formData.password}
-                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Rol</label>
-                <select 
-                  className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "#888888" }}>
+                  Contraseña (mín 6 char)
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  className="input"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: "#888888" }}>
+                  Rol
+                </label>
+                <select
+                  className="input"
                   value={formData.role}
-                  onChange={(e) => setFormData({...formData, role: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                 >
                   <option value="user">Usuario normal</option>
                   <option value="admin">Administrador</option>
                 </select>
               </div>
 
-              <div className="flex justify-end space-x-3 mt-6">
-                <button 
-                  type="button" 
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                  className="btn btn-secondary"
                 >
                   Cancelar
                 </button>
-                <button 
-                  type="submit"
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
-                >
+                <button type="submit" className="btn btn-primary">
                   Guardar Usuario
                 </button>
               </div>

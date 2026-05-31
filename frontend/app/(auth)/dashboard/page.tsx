@@ -4,6 +4,16 @@ import { useAuthContext } from "@/components/Auth/AuthProvider";
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import {
+  FileText,
+  BookOpen,
+  HardDrive,
+  TrendingUp,
+  MessageSquare,
+  CheckCircle,
+  Target,
+  ArrowRight,
+} from "lucide-react";
 
 interface SystemStats {
   documents: {
@@ -38,48 +48,58 @@ interface SystemStats {
 }
 
 interface MetricCardProps {
-  icon: string;
+  icon: React.ElementType;
   title: string;
   value: string | number;
   subtitle?: string;
-  color: "indigo" | "cyan" | "green" | "orange" | "red";
 }
 
-const MetricCard = ({ icon, title, value, subtitle, color }: MetricCardProps) => {
-  const colorClasses = {
-    indigo: "from-indigo-50 to-blue-50 border-indigo-100",
-    cyan: "from-cyan-50 to-blue-50 border-cyan-100",
-    green: "from-green-50 to-emerald-50 border-green-100",
-    orange: "from-orange-50 to-amber-50 border-orange-100",
-    red: "from-red-50 to-pink-50 border-red-100",
-  };
-
-  return (
-    <div className={`card card-padding bg-gradient-to-br ${colorClasses[color]} border`}>
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-slate-600">{title}</p>
-          <p className="text-3xl font-bold text-slate-900 mt-2">{value}</p>
-          {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
-        </div>
-        <div className="text-4xl">{icon}</div>
-      </div>
-    </div>
-  );
-};
-
-const ServiceStatus = ({ service, status, message }: { service: string; status: string; message: string }) => {
-  const statusColor = status === "healthy" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800";
-  const statusIcon = status === "healthy" ? "✅" : "⚠️";
-
-  return (
-    <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+const MetricCard = ({ icon: Icon, title, value, subtitle }: MetricCardProps) => (
+  <div className="card card-padding">
+    <div className="flex items-start justify-between">
       <div>
-        <p className="font-semibold text-slate-900">{service}</p>
-        <p className="text-xs text-slate-500">{message}</p>
+        <p className="text-xs font-medium uppercase tracking-widest" style={{ color: "#888888" }}>
+          {title}
+        </p>
+        <p className="text-3xl font-bold mt-2" style={{ color: "#F5F5F5" }}>
+          {value}
+        </p>
+        {subtitle && (
+          <p className="text-xs mt-1" style={{ color: "#555555" }}>
+            {subtitle}
+          </p>
+        )}
       </div>
-      <span className={`px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-2 ${statusColor}`}>
-        {statusIcon} {status === "healthy" ? "Healthy" : "Unavailable"}
+      <Icon size={18} strokeWidth={1.5} style={{ color: "#C9A84C" }} />
+    </div>
+  </div>
+);
+
+const ServiceStatus = ({
+  service,
+  status,
+  message,
+}: {
+  service: string;
+  status: string;
+  message: string;
+}) => {
+  const isHealthy = status === "healthy";
+  return (
+    <div
+      className="flex items-center justify-between p-3 rounded-lg border"
+      style={{ backgroundColor: "#111111", borderColor: "#2A2A2A" }}
+    >
+      <div>
+        <p className="text-sm font-medium" style={{ color: "#F5F5F5" }}>
+          {service}
+        </p>
+        <p className="text-xs mt-0.5" style={{ color: "#555555" }}>
+          {message}
+        </p>
+      </div>
+      <span className={isHealthy ? "badge-success" : "badge-error"}>
+        {isHealthy ? "Healthy" : "Unavailable"}
       </span>
     </div>
   );
@@ -120,55 +140,114 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* Header Section */}
+      {/* Welcome */}
       <div className="animate-slideUp">
-        <h1 className="text-4xl font-bold text-slate-900 tracking-tight">
-          Welcome back, {user?.email?.split("@")[0]}!
+        <h1 className="text-3xl font-bold tracking-tight" style={{ color: "#F5F5F5" }}>
+          Bienvenido, {user?.email?.split("@")[0]}
         </h1>
-        <p className="text-lg text-slate-600 mt-3">
-          {company?.name} • Operational Knowledge Assistant
-          {isSuperAdmin && <span className="ml-3 text-sm bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold">Super Admin</span>}
-          {user?.role === "admin" && <span className="ml-3 text-sm bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full font-semibold">Admin</span>}
-        </p>
+        <div className="flex items-center gap-3 mt-2 flex-wrap">
+          <p className="text-sm" style={{ color: "#888888" }}>
+            {company?.name} · Operational Knowledge Assistant
+          </p>
+          {isSuperAdmin && <span className="badge-primary">Super Admin</span>}
+          {user?.role === "admin" && <span className="badge-primary">Admin</span>}
+        </div>
       </div>
 
-      {/* System Stats — solo super_admin carga y ve este bloque */}
+      {/* System Stats — solo super_admin */}
       {isSuperAdmin && (
         <>
           {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-800 font-semibold">Error loading analytics: {error}</p>
+            <div
+              className="px-4 py-3 rounded-lg border text-sm"
+              style={{
+                backgroundColor: "rgba(229,62,62,0.08)",
+                borderColor: "rgba(229,62,62,0.3)",
+                color: "#E53E3E",
+              }}
+            >
+              Error cargando analytics: {error}
             </div>
           )}
 
           {loading ? (
             <div className="space-y-4">
-              <div className="h-32 bg-slate-100 rounded-lg animate-pulse"></div>
-              <div className="h-32 bg-slate-100 rounded-lg animate-pulse"></div>
+              <div className="h-28 rounded-xl animate-pulse" style={{ backgroundColor: "#1A1A1A" }} />
+              <div className="h-28 rounded-xl animate-pulse" style={{ backgroundColor: "#1A1A1A" }} />
             </div>
           ) : stats ? (
             <>
               <section>
-                <h2 className="text-2xl font-bold text-slate-900 mb-4">📚 Knowledge Base</h2>
+                <h2
+                  className="text-xs font-semibold uppercase tracking-widest mb-4"
+                  style={{ color: "#555555" }}
+                >
+                  Knowledge Base
+                </h2>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <MetricCard icon="📄" title="Documents" value={stats.documents.total_documents} subtitle={`${stats.documents.total_vectors} vectors`} color="indigo" />
-                  <MetricCard icon="📋" title="FAQs" value={stats.faqs.total_faqs} subtitle={`${stats.faqs.total_vectors} vectors`} color="cyan" />
-                  <MetricCard icon="💾" title="Storage" value={`${(stats.documents.total_size_bytes / 1024).toFixed(1)} KB`} subtitle="Total documents" color="green" />
-                  <MetricCard icon="📈" title="Processed Today" value={stats.documents.documents_processed_today} subtitle="new documents" color="orange" />
+                  <MetricCard
+                    icon={FileText}
+                    title="Documents"
+                    value={stats.documents.total_documents}
+                    subtitle={`${stats.documents.total_vectors} vectors`}
+                  />
+                  <MetricCard
+                    icon={BookOpen}
+                    title="FAQs"
+                    value={stats.faqs.total_faqs}
+                    subtitle={`${stats.faqs.total_vectors} vectors`}
+                  />
+                  <MetricCard
+                    icon={HardDrive}
+                    title="Storage"
+                    value={`${(stats.documents.total_size_bytes / 1024).toFixed(1)} KB`}
+                    subtitle="Total docs"
+                  />
+                  <MetricCard
+                    icon={TrendingUp}
+                    title="Processed Today"
+                    value={stats.documents.documents_processed_today}
+                    subtitle="new documents"
+                  />
                 </div>
               </section>
 
               <section>
-                <h2 className="text-2xl font-bold text-slate-900 mb-4">💬 Chat Analytics (Today)</h2>
+                <h2
+                  className="text-xs font-semibold uppercase tracking-widest mb-4"
+                  style={{ color: "#555555" }}
+                >
+                  Chat Analytics (hoy)
+                </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <MetricCard icon="💭" title="Messages" value={stats.chat_today.total_chats_today} subtitle="conversations today" color="indigo" />
-                  <MetricCard icon="✨" title="Success Rate" value={`${(stats.chat_today.success_rate * 100).toFixed(1)}%`} subtitle="RAG responses" color={stats.chat_today.success_rate >= 0.8 ? "green" : "orange"} />
-                  <MetricCard icon="🎯" title="Confidence" value={`${(stats.chat_today.avg_confidence * 100).toFixed(0)}%`} subtitle="average score" color={stats.chat_today.avg_confidence >= 0.7 ? "green" : "orange"} />
+                  <MetricCard
+                    icon={MessageSquare}
+                    title="Mensajes"
+                    value={stats.chat_today.total_chats_today}
+                    subtitle="conversaciones hoy"
+                  />
+                  <MetricCard
+                    icon={CheckCircle}
+                    title="Success Rate"
+                    value={`${(stats.chat_today.success_rate * 100).toFixed(1)}%`}
+                    subtitle="respuestas RAG"
+                  />
+                  <MetricCard
+                    icon={Target}
+                    title="Confidence"
+                    value={`${(stats.chat_today.avg_confidence * 100).toFixed(0)}%`}
+                    subtitle="score promedio"
+                  />
                 </div>
               </section>
 
               <section>
-                <h2 className="text-2xl font-bold text-slate-900 mb-4">🔧 System Services</h2>
+                <h2
+                  className="text-xs font-semibold uppercase tracking-widest mb-4"
+                  style={{ color: "#555555" }}
+                >
+                  System Services
+                </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {stats.services.map((service) => (
                     <ServiceStatus key={service.service} {...service} />
@@ -176,8 +255,8 @@ export default function DashboardPage() {
                 </div>
               </section>
 
-              <p className="text-xs text-slate-400 text-center">
-                Last updated: {new Date(stats.timestamp).toLocaleTimeString()}
+              <p className="text-xs text-center" style={{ color: "#555555" }}>
+                Última actualización: {new Date(stats.timestamp).toLocaleTimeString()}
               </p>
             </>
           ) : null}
@@ -186,36 +265,91 @@ export default function DashboardPage() {
 
       {/* Quick Actions */}
       <section>
-        <h2 className="text-2xl font-bold text-slate-900 mb-4">Quick Actions</h2>
+        <h2
+          className="text-xs font-semibold uppercase tracking-widest mb-4"
+          style={{ color: "#555555" }}
+        >
+          Quick Actions
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Link href="/chat" className="group relative overflow-hidden card bg-gradient-to-br from-indigo-600 to-blue-600 text-white p-6 hover:shadow-xl transition">
-            <div className="relative z-10">
-              <h3 className="font-semibold text-lg mb-2">💬 Start Chat</h3>
-              <p className="text-sm text-indigo-100">Ask questions about your operations</p>
+          <Link
+            href="/chat"
+            className="group card card-padding flex items-center justify-between transition-all duration-200"
+            style={{ borderColor: "#2A2A2A" }}
+            onMouseEnter={(e) =>
+              ((e.currentTarget as HTMLAnchorElement).style.borderColor = "#C9A84C")
+            }
+            onMouseLeave={(e) =>
+              ((e.currentTarget as HTMLAnchorElement).style.borderColor = "#2A2A2A")
+            }
+          >
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <MessageSquare size={15} strokeWidth={1.5} style={{ color: "#C9A84C" }} />
+                <h3 className="font-semibold text-sm" style={{ color: "#F5F5F5" }}>
+                  Iniciar Chat
+                </h3>
+              </div>
+              <p className="text-xs" style={{ color: "#888888" }}>
+                Consulta sobre tu base de conocimiento
+              </p>
             </div>
-            <div className="absolute right-0 top-0 text-6xl opacity-10">→</div>
+            <ArrowRight size={15} strokeWidth={1.5} style={{ color: "#555555" }} />
           </Link>
 
-          <Link href="/faq" className="group relative overflow-hidden card bg-gradient-to-br from-slate-700 to-slate-900 text-white p-6 hover:shadow-xl transition">
-            <div className="relative z-10">
-              <h3 className="font-semibold text-lg mb-2">📚 Browse FAQ</h3>
-              <p className="text-sm text-slate-300">Explore knowledge base</p>
+          <Link
+            href="/faq"
+            className="group card card-padding flex items-center justify-between transition-all duration-200"
+            style={{ borderColor: "#2A2A2A" }}
+            onMouseEnter={(e) =>
+              ((e.currentTarget as HTMLAnchorElement).style.borderColor = "#C9A84C")
+            }
+            onMouseLeave={(e) =>
+              ((e.currentTarget as HTMLAnchorElement).style.borderColor = "#2A2A2A")
+            }
+          >
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <BookOpen size={15} strokeWidth={1.5} style={{ color: "#C9A84C" }} />
+                <h3 className="font-semibold text-sm" style={{ color: "#F5F5F5" }}>
+                  Ver FAQs
+                </h3>
+              </div>
+              <p className="text-xs" style={{ color: "#888888" }}>
+                Explora la base de conocimiento
+              </p>
             </div>
-            <div className="absolute right-0 top-0 text-6xl opacity-10">→</div>
+            <ArrowRight size={15} strokeWidth={1.5} style={{ color: "#555555" }} />
           </Link>
 
           {isAdmin && (
-            <Link href="/documents" className="group relative overflow-hidden card bg-gradient-to-br from-emerald-600 to-teal-600 text-white p-6 hover:shadow-xl transition">
-              <div className="relative z-10">
-                <h3 className="font-semibold text-lg mb-2">📤 Upload Documents</h3>
-                <p className="text-sm text-emerald-100">Manage knowledge base</p>
+            <Link
+              href="/documents"
+              className="group card card-padding flex items-center justify-between transition-all duration-200"
+              style={{ borderColor: "#2A2A2A" }}
+              onMouseEnter={(e) =>
+                ((e.currentTarget as HTMLAnchorElement).style.borderColor = "#C9A84C")
+              }
+              onMouseLeave={(e) =>
+                ((e.currentTarget as HTMLAnchorElement).style.borderColor = "#2A2A2A")
+              }
+            >
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <FileText size={15} strokeWidth={1.5} style={{ color: "#C9A84C" }} />
+                  <h3 className="font-semibold text-sm" style={{ color: "#F5F5F5" }}>
+                    Subir Documentos
+                  </h3>
+                </div>
+                <p className="text-xs" style={{ color: "#888888" }}>
+                  Gestiona la base de conocimiento
+                </p>
               </div>
-              <div className="absolute right-0 top-0 text-6xl opacity-10">→</div>
+              <ArrowRight size={15} strokeWidth={1.5} style={{ color: "#555555" }} />
             </Link>
           )}
         </div>
       </section>
-
     </div>
   );
 }

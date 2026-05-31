@@ -3,21 +3,23 @@ import RegisterForm from "@/components/Auth/RegisterForm";
 
 export default function RegisterPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: "#0A0A0A" }}>
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <h1 className="text-3xl font-bold text-center text-gray-900 mb-2">
-            OperaBot
-          </h1>
-          <p className="text-center text-gray-600 mb-8">
-            Create your account
-          </p>
+        <div className="card card-padding">
+          <div className="mb-8 text-center">
+            <h1 className="text-3xl font-bold tracking-tight" style={{ color: "#C9A84C" }}>
+              OperaBot
+            </h1>
+            <p className="text-sm mt-2" style={{ color: "#888888" }}>
+              Create your account
+            </p>
+          </div>
 
           <RegisterForm />
 
-          <p className="text-center text-gray-600 mt-6">
+          <p className="text-center text-sm mt-6" style={{ color: "#888888" }}>
             Already have an account?{" "}
-            <Link href="/" className="text-blue-600 hover:underline font-medium">
+            <Link href="/" className="font-medium" style={{ color: "#C9A84C" }}>
               Login
             </Link>
           </p>

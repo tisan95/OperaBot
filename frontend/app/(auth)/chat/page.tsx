@@ -2,6 +2,7 @@
 
 import { apiFetch } from "@/lib/api";
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { Send, MessageSquare } from "lucide-react";
 
 interface Source {
   type: string;
@@ -28,12 +29,10 @@ export default function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Load chat history
   useEffect(() => {
     loadHistory();
   }, []);
 
-  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -59,7 +58,6 @@ export default function ChatPage() {
     setInput("");
     setLoading(true);
 
-    // Optimistically add user message
     const tempId = Math.random();
     setMessages((prev) => [
       ...prev,
@@ -80,7 +78,6 @@ export default function ChatPage() {
         body: JSON.stringify({ message: userMessage }),
       });
 
-      // Replace loading message with actual response
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === tempId
@@ -101,7 +98,6 @@ export default function ChatPage() {
       const message = err instanceof Error ? err.message : "Failed to send message";
 
       if (isRateLimit) {
-        // Show rate limit as an inline bot bubble so it feels like part of the conversation
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === tempId
@@ -119,99 +115,142 @@ export default function ChatPage() {
   };
 
   const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 0.8) return "text-green-600";
-    if (confidence >= 0.6) return "text-yellow-600";
-    return "text-red-600";
+    if (confidence >= 0.8) return "#38A169";
+    if (confidence >= 0.6) return "#C9A84C";
+    return "#E53E3E";
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-200px)] bg-white border border-slate-200 rounded-lg shadow-sm">
+    <div
+      className="flex flex-col rounded-xl border"
+      style={{
+        height: "calc(100vh - 120px)",
+        backgroundColor: "#0A0A0A",
+        borderColor: "#2A2A2A",
+      }}
+    >
       {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-slate-200 px-6 py-4">
-        <h1 className="text-2xl font-bold text-slate-900">💬 Chat</h1>
-        <p className="text-sm text-slate-600 mt-1">
-          Ask questions about your operational knowledge base
+      <div
+        className="border-b px-6 py-4 shrink-0"
+        style={{ backgroundColor: "#111111", borderColor: "#2A2A2A" }}
+      >
+        <h1 className="text-base font-semibold" style={{ color: "#F5F5F5" }}>
+          Chat
+        </h1>
+        <p className="text-xs mt-0.5" style={{ color: "#888888" }}>
+          Consulta sobre tu base de conocimiento operacional
         </p>
       </div>
 
-      {/* Messages Container */}
+      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
         {messages.length === 0 && (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <div className="text-6xl mb-4">💭</div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-2">
-                Start a conversation
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 border"
+                style={{ backgroundColor: "#1A1A1A", borderColor: "#2A2A2A" }}
+              >
+                <MessageSquare size={20} strokeWidth={1.5} style={{ color: "#C9A84C" }} />
+              </div>
+              <h2 className="text-base font-semibold mb-2" style={{ color: "#F5F5F5" }}>
+                Inicia una conversación
               </h2>
-              <p className="text-slate-600 max-w-md">
-                Ask questions about FAQs, documents, or operational procedures.
-                The AI will search your knowledge base and provide answers with sources.
+              <p className="text-sm max-w-xs" style={{ color: "#888888" }}>
+                Pregunta sobre FAQs, documentos o procedimientos operacionales.
               </p>
             </div>
           </div>
         )}
 
-        {messages.map((msg, idx) => (
-          <div key={msg.id} className="space-y-3">
-            {/* User Message */}
+        {messages.map((msg) => (
+          <div key={msg.id} className="space-y-3 animate-fadeIn">
+            {/* User bubble */}
             <div className="flex justify-end">
-              <div className="max-w-2xl bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-lg px-4 py-3 shadow-sm">
+              <div
+                className="max-w-2xl rounded-2xl rounded-br-none px-4 py-3 border"
+                style={{
+                  backgroundColor: "#2A2000",
+                  borderColor: "rgba(201,168,76,0.25)",
+                  color: "#F5F5F5",
+                }}
+              >
                 <p className="text-sm">{msg.user_message}</p>
               </div>
             </div>
 
-            {/* Bot Response with Sources */}
+            {/* Bot bubble */}
             <div className="flex justify-start">
-              <div className={`max-w-2xl rounded-lg shadow-sm p-4 space-y-3 ${
-                msg.isRateLimit
-                  ? "bg-amber-50 border border-amber-200"
-                  : "bg-white border border-slate-200"
-              }`}>
+              <div
+                className="max-w-2xl rounded-2xl rounded-bl-none p-4 space-y-3 border"
+                style={{
+                  backgroundColor: msg.isRateLimit ? "rgba(201,168,76,0.06)" : "#1A1A1A",
+                  borderColor: msg.isRateLimit ? "rgba(201,168,76,0.2)" : "#2A2A2A",
+                }}
+              >
                 {msg.isLoading ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-100"></div>
-                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-200"></div>
-                    <span className="text-sm text-slate-600 ml-2">Thinking...</span>
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className="w-1.5 h-1.5 rounded-full animate-bounce"
+                      style={{ backgroundColor: "#555555" }}
+                    />
+                    <span
+                      className="w-1.5 h-1.5 rounded-full animate-bounce"
+                      style={{ backgroundColor: "#555555", animationDelay: "0.15s" }}
+                    />
+                    <span
+                      className="w-1.5 h-1.5 rounded-full animate-bounce"
+                      style={{ backgroundColor: "#555555", animationDelay: "0.3s" }}
+                    />
+                    <span className="text-xs ml-1" style={{ color: "#888888" }}>
+                      Procesando...
+                    </span>
                   </div>
                 ) : msg.isRateLimit ? (
-                  <p className="text-sm text-amber-800 font-medium">⏱️ {msg.bot_message}</p>
+                  <p className="text-sm" style={{ color: "#C9A84C" }}>
+                    {msg.bot_message}
+                  </p>
                 ) : (
                   <>
-                    {/* Answer */}
-                    <div className="text-sm text-slate-900 leading-relaxed">
+                    <div className="text-sm leading-relaxed" style={{ color: "#F5F5F5" }}>
                       {msg.bot_message}
                     </div>
 
-                    {/* Confidence Score */}
                     {msg.confidence > 0 && (
-                      <div className={`text-xs font-semibold ${getConfidenceColor(msg.confidence)}`}>
+                      <div
+                        className="text-xs font-medium"
+                        style={{ color: getConfidenceColor(msg.confidence) }}
+                      >
                         Confidence: {(msg.confidence * 100).toFixed(0)}%
                       </div>
                     )}
 
-                    {/* Sources */}
                     {msg.sources.length > 0 && (
-                      <div className="border-t border-slate-200 pt-3">
-                        <p className="text-xs font-semibold text-slate-700 mb-2">
-                          📚 Sources:
+                      <div className="border-t pt-3" style={{ borderColor: "#2A2A2A" }}>
+                        <p
+                          className="text-xs font-semibold mb-2 uppercase tracking-wider"
+                          style={{ color: "#888888" }}
+                        >
+                          Fuentes
                         </p>
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                           {msg.sources.map((source, idx) => (
                             <div
                               key={idx}
-                              className="text-xs bg-slate-50 border border-slate-200 rounded p-2 flex items-start space-x-2"
+                              className="text-xs rounded-lg px-3 py-2 border flex items-start gap-2"
+                              style={{
+                                backgroundColor: "#111111",
+                                borderColor: "#2A2A2A",
+                              }}
                             >
-                              <span className="font-semibold text-slate-600 min-w-fit">
-                                {source.type === "FAQ" ? "❓" : "📄"}
+                              <span style={{ color: "#C9A84C" }}>
+                                {source.type === "FAQ" ? "?" : "↗"}
                               </span>
                               <div>
-                                <p className="font-semibold text-slate-700 truncate">
+                                <p className="font-medium" style={{ color: "#F5F5F5" }}>
                                   {source.name || source.title}
                                 </p>
-                                <p className="text-slate-500">
-                                  Score: {source.score}
-                                </p>
+                                <p style={{ color: "#555555" }}>Score: {source.score}</p>
                               </div>
                             </div>
                           ))}
@@ -227,8 +266,15 @@ export default function ChatPage() {
 
         {error && (
           <div className="flex justify-center">
-            <div className="max-w-2xl bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
-              ❌ {error}
+            <div
+              className="px-4 py-3 rounded-lg border text-sm"
+              style={{
+                backgroundColor: "rgba(229,62,62,0.08)",
+                borderColor: "rgba(229,62,62,0.3)",
+                color: "#E53E3E",
+              }}
+            >
+              {error}
             </div>
           </div>
         )}
@@ -236,23 +282,27 @@ export default function ChatPage() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
-      <div className="border-t border-slate-200 bg-white px-6 py-4">
+      {/* Input */}
+      <div
+        className="border-t px-6 py-4 shrink-0"
+        style={{ borderColor: "#2A2A2A", backgroundColor: "#111111" }}
+      >
         <form onSubmit={handleSubmit} className="flex gap-3">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask a question..."
+            placeholder="Escribe tu pregunta..."
             disabled={loading}
-            className="flex-1 px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-slate-100"
+            className="input flex-1"
           />
           <button
             type="submit"
             disabled={loading || !input.trim()}
-            className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-slate-400 font-semibold transition"
+            className="btn btn-primary gap-2"
           >
-            {loading ? "..." : "Send"}
+            <Send size={14} strokeWidth={2} />
+            {loading ? "..." : "Enviar"}
           </button>
         </form>
       </div>
