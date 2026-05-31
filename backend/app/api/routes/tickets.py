@@ -1,7 +1,7 @@
 """Ticket management endpoints for issue escalation."""
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -14,8 +14,10 @@ from app.api.dependencies import (
     get_current_user_id,
     require_admin,
 )
+from app.models.company import Company
 from app.models.user import User as UserModel
 from app.api.schemas.ticket import (
+    CompanySettingsUpdate,
     TicketCreateRequest,
     TicketNoteCreate,
     TicketNoteResponse,
@@ -42,6 +44,7 @@ def _ticket_to_response(ticket: Ticket, user_email: Optional[str] = None) -> Tic
         created_at=ticket.created_at,
         updated_at=ticket.updated_at,
         resolved_at=ticket.resolved_at,
+        archived_at=ticket.archived_at,
         user_email=user_email,
     )
 
@@ -91,15 +94,19 @@ async def create_ticket(
 
 @router.get("/my", response_model=List[TicketResponse])
 async def list_my_tickets(
+    include_archived: bool = False,
     user_id: str = Depends(get_current_user_id),
     company_id: str = Depends(get_current_company_id),
     db: AsyncSession = Depends(get_db),
 ) -> List[TicketResponse]:
-    result = await db.execute(
+    query = (
         select(Ticket)
         .where(Ticket.user_id == user_id, Ticket.company_id == company_id)
         .order_by(Ticket.created_at.desc())
     )
+    if not include_archived:
+        query = query.where(Ticket.archived_at.is_(None))
+    result = await db.execute(query)
     tickets = result.scalars().all()
     return [_ticket_to_response(t) for t in tickets]
 
@@ -109,6 +116,7 @@ async def list_my_tickets(
 @router.get("/", response_model=List[TicketResponse])
 async def list_tickets(
     filter_status: Optional[TicketStatus] = None,
+    include_archived: bool = False,
     current_user: UserModel = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ) -> List[TicketResponse]:
@@ -119,12 +127,97 @@ async def list_tickets(
         .options(selectinload(Ticket.user))
         .order_by(Ticket.created_at.desc())
     )
+    if not include_archived:
+        query = query.where(Ticket.archived_at.is_(None))
     if filter_status:
         query = query.where(Ticket.status == filter_status)
 
     result = await db.execute(query)
     tickets = result.scalars().all()
     return [_ticket_to_response(t, user_email=t.user.email if t.user else None) for t in tickets]
+
+
+# ── GET /settings — retención por empresa (solo admin) ───────────────────────
+# NOTE: literal routes (/settings, /archive) must be declared before parametric
+#       /{ticket_id} routes so FastAPI doesn't match them as ticket IDs.
+
+@router.get("/settings", status_code=status.HTTP_200_OK)
+async def get_company_settings(
+    current_user: UserModel = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    company_result = await db.execute(
+        select(Company).where(Company.id == current_user.company_id)
+    )
+    company = company_result.scalar_one_or_none()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    return {"ticket_retention_days": company.ticket_retention_days}
+
+
+# ── PATCH /settings — actualizar retención (solo admin) ──────────────────────
+
+@router.patch("/settings", status_code=status.HTTP_200_OK)
+async def update_company_settings(
+    body: CompanySettingsUpdate,
+    current_user: UserModel = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    if body.ticket_retention_days not in (7, 14, 30):
+        raise HTTPException(
+            status_code=400,
+            detail="ticket_retention_days must be 7, 14 or 30",
+        )
+    company_result = await db.execute(
+        select(Company).where(Company.id == current_user.company_id)
+    )
+    company = company_result.scalar_one_or_none()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    company.ticket_retention_days = body.ticket_retention_days
+    await db.commit()
+    return {"ticket_retention_days": company.ticket_retention_days}
+
+
+# ── POST /archive — archivar tickets resueltos (solo admin) ──────────────────
+
+@router.post("/archive", status_code=status.HTTP_200_OK)
+async def archive_resolved_tickets(
+    current_user: UserModel = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Archive tickets with status=resolved whose resolved_at exceeds the company
+    retention window. Returns the count of archived tickets."""
+    company_id = str(current_user.company_id)
+
+    company_result = await db.execute(
+        select(Company).where(Company.id == company_id)
+    )
+    company = company_result.scalar_one_or_none()
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    retention_days = getattr(company, "ticket_retention_days", 7) or 7
+    cutoff = datetime.utcnow() - timedelta(days=retention_days)
+
+    result = await db.execute(
+        select(Ticket).where(
+            Ticket.company_id == company_id,
+            Ticket.status == TicketStatus.RESOLVED,
+            Ticket.resolved_at <= cutoff,
+            Ticket.archived_at.is_(None),
+        )
+    )
+    tickets = result.scalars().all()
+
+    now = datetime.utcnow()
+    for t in tickets:
+        t.archived_at = now
+
+    await db.commit()
+    logger.info(f"[archive] Archived {len(tickets)} tickets for company={company_id}")
+    return {"archived": len(tickets), "retention_days": retention_days}
 
 
 # ── PATCH /{ticket_id} — actualizar ticket (solo admin) ─────────────────────

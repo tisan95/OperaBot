@@ -181,9 +181,11 @@ def _calculate_confidence(knowledge: Dict[str, List[Dict[str, Any]]]) -> float:
     return min(max(sum(scores) / len(scores), 0.0), 1.0) if scores else 0.0
 
 
-async def _generate_with_ollama(message: str, context: str) -> str:
-    """Call Ollama to generate a natural, integrated answer."""
-    system_prompt = """Eres OperaBot, asistente de conocimiento operacional de una empresa.
+# ── LLM provider adapters ────────────────────────────────────────────────────
+
+_FALLBACK = "No he podido generar una respuesta. Por favor, intenta de nuevo."
+
+_SYSTEM_PROMPT = """Eres OperaBot, asistente de conocimiento operacional de una empresa.
 Respondes preguntas basándote en la base de conocimiento proporcionada.
 
 REGLAS:
@@ -196,41 +198,112 @@ REGLAS:
 - Si el contexto no cubre la pregunta, dilo con honestidad y brevedad
 - Tono: profesional pero cercano"""
 
+
+def _build_prompt(message: str, context: str) -> str:
     if context:
-        prompt = f"{system_prompt}\n\nCONTEXTO DE LA BASE DE CONOCIMIENTO:\n{context}\n\nPREGUNTA DEL USUARIO:\n{message}\n\nRespuesta:"
+        prompt = f"{_SYSTEM_PROMPT}\n\nCONTEXTO DE LA BASE DE CONOCIMIENTO:\n{context}\n\nPREGUNTA DEL USUARIO:\n{message}\n\nRespuesta:"
     else:
-        prompt = f"{system_prompt}\n\nPREGUNTA DEL USUARIO:\n{message}\n\nNo tengo información específica sobre esto en la base de conocimiento. Respuesta:"
-
+        prompt = f"{_SYSTEM_PROMPT}\n\nPREGUNTA DEL USUARIO:\n{message}\n\nNo tengo información específica sobre esto en la base de conocimiento. Respuesta:"
     if len(prompt) > 28000:
-        logger.warning("Prompt demasiado grande, truncando contexto.")
-        prompt = f"{system_prompt}\n\nCONTEXTO (truncado):\n{context[:4000]}\n\nPREGUNTA:\n{message}\n\nRespuesta:"
+        logger.warning("[LLM] Prompt demasiado grande, truncando contexto.")
+        prompt = f"{_SYSTEM_PROMPT}\n\nCONTEXTO (truncado):\n{context[:4000]}\n\nPREGUNTA:\n{message}\n\nRespuesta:"
+    return prompt
 
-    ollama_url = getattr(settings, "LLM_API_URL", None) or "http://localhost:11434/api/generate"
-    timeout = float(getattr(settings, "LLM_TIMEOUT_SECONDS", 120) or 120)
 
-    logger.info(f"[LLM] Generando respuesta para: '{message[:60]}'")
+async def _call_ollama(prompt: str, timeout: float) -> str:
+    url = getattr(settings, "LLM_API_URL", None) or "http://localhost:11434/api/generate"
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.post(ollama_url, json={
+            resp = await client.post(url, json={
                 "model": settings.LLM_MODEL,
                 "prompt": prompt,
                 "stream": False,
             })
         if resp.status_code != 200:
-            logger.error(f"[LLM] Ollama error {resp.status_code}: {resp.text[:200]}")
-            return "No he podido generar una respuesta. Por favor, intenta de nuevo."
-        text = resp.json().get("response", "").strip()
-        logger.info(f"[LLM] Respuesta generada: {len(text)} chars")
-        return text or "No he podido generar una respuesta. Por favor, intenta de nuevo."
+            logger.error(f"[LLM/ollama] {resp.status_code}: {resp.text[:200]}")
+            return _FALLBACK
+        return resp.json().get("response", "").strip() or _FALLBACK
     except httpx.TimeoutException:
-        logger.error(f"[LLM] Timeout tras {timeout}s")
+        logger.error(f"[LLM/ollama] Timeout tras {timeout}s")
         return "La generación tardó demasiado. Por favor, intenta de nuevo."
     except httpx.ConnectError as e:
-        logger.error(f"[LLM] No se puede conectar a Ollama: {e}")
+        logger.error(f"[LLM/ollama] No se puede conectar: {e}")
         return "No puedo conectar con el modelo de lenguaje. Comprueba la conexión."
     except Exception as e:
-        logger.error(f"[LLM] Error inesperado: {type(e).__name__}: {e}", exc_info=True)
+        logger.error(f"[LLM/ollama] Error inesperado: {type(e).__name__}: {e}", exc_info=True)
         return "Error interno. Por favor, intenta de nuevo."
+
+
+async def _call_groq(prompt: str, timeout: float) -> str:
+    url = getattr(settings, "GROQ_API_URL", "https://api.groq.com/openai/v1/chat/completions")
+    api_key = settings.LLM_API_KEY or ""
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.post(url, json={
+                "model": settings.LLM_MODEL,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.3,
+            }, headers={"Authorization": f"Bearer {api_key}"})
+        if resp.status_code != 200:
+            logger.error(f"[LLM/groq] {resp.status_code}: {resp.text[:200]}")
+            return _FALLBACK
+        return resp.json()["choices"][0]["message"]["content"].strip() or _FALLBACK
+    except httpx.TimeoutException:
+        logger.error(f"[LLM/groq] Timeout tras {timeout}s")
+        return "La generación tardó demasiado. Por favor, intenta de nuevo."
+    except Exception as e:
+        logger.error(f"[LLM/groq] Error: {type(e).__name__}: {e}", exc_info=True)
+        return "Error interno. Por favor, intenta de nuevo."
+
+
+async def _call_anthropic(prompt: str, timeout: float) -> str:
+    url = getattr(settings, "ANTHROPIC_API_URL", "https://api.anthropic.com/v1/messages")
+    api_key = settings.LLM_API_KEY or ""
+    version = getattr(settings, "ANTHROPIC_VERSION", "2023-06-01")
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.post(url, json={
+                "model": settings.LLM_MODEL,
+                "max_tokens": 1024,
+                "messages": [{"role": "user", "content": prompt}],
+            }, headers={
+                "x-api-key": api_key,
+                "anthropic-version": version,
+                "content-type": "application/json",
+            })
+        if resp.status_code != 200:
+            logger.error(f"[LLM/anthropic] {resp.status_code}: {resp.text[:200]}")
+            return _FALLBACK
+        return resp.json()["content"][0]["text"].strip() or _FALLBACK
+    except httpx.TimeoutException:
+        logger.error(f"[LLM/anthropic] Timeout tras {timeout}s")
+        return "La generación tardó demasiado. Por favor, intenta de nuevo."
+    except Exception as e:
+        logger.error(f"[LLM/anthropic] Error: {type(e).__name__}: {e}", exc_info=True)
+        return "Error interno. Por favor, intenta de nuevo."
+
+
+async def _call_llm(prompt: str, timeout: Optional[float] = None) -> str:
+    """Central dispatcher: routes to the correct LLM provider based on LLM_PROVIDER."""
+    t = timeout or float(getattr(settings, "LLM_TIMEOUT_SECONDS", 120) or 120)
+    provider = (settings.LLM_PROVIDER or "ollama").lower()
+    logger.info(f"[LLM] provider={provider} model={settings.LLM_MODEL}")
+    if provider == "groq":
+        return await _call_groq(prompt, t)
+    if provider == "anthropic":
+        return await _call_anthropic(prompt, t)
+    return await _call_ollama(prompt, t)
+
+
+async def _generate_with_ollama(message: str, context: str) -> str:
+    """Build the prompt and call the configured LLM provider.
+
+    The name is kept for backward compat (tests mock this function).
+    Internally it now dispatches to _call_llm which routes per LLM_PROVIDER.
+    """
+    prompt = _build_prompt(message, context)
+    logger.info(f"[LLM] Generando respuesta para: '{message[:60]}'")
+    return await _call_llm(prompt)
 
 
 _ESCALATION_FALLBACK = {
@@ -263,21 +336,10 @@ Devuelve ÚNICAMENTE JSON válido, sin texto antes ni después:
   "context_summary": "resumen del problema en 1 frase corta"
 }}"""
 
-    ollama_url = getattr(settings, "LLM_API_URL", None) or "http://localhost:11434/api/generate"
     timeout = min(float(getattr(settings, "LLM_TIMEOUT_SECONDS", 60) or 60), 45)
 
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.post(ollama_url, json={
-                "model": settings.LLM_MODEL,
-                "prompt": prompt,
-                "stream": False,
-            })
-        if resp.status_code != 200:
-            logger.warning(f"[LLM] escalation questions: ollama {resp.status_code}")
-            return _ESCALATION_FALLBACK
-
-        raw = resp.json().get("response", "")
+        raw = await _call_llm(prompt, timeout)
         # Extract the first JSON object from the response
         match = re.search(r"\{.*?\}", raw, re.DOTALL)
         if not match:

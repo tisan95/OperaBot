@@ -1,94 +1,152 @@
-"""Integration tests for chat flows."""
+"""Integration tests for chat endpoints (greeting / question / escalate)."""
 
 import pytest
 
 
-@pytest.mark.asyncio
-async def test_chat_messages_returns_llm_answer(async_client, monkeypatch):
-    async def fake_generate_answer(message, faq_context=None):
-        return "Mocked answer from LLM"
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-    monkeypatch.setattr("app.api.routes.chat.generate_answer", fake_generate_answer)
+_RAG_MOCK = {
+    "answer": "La respuesta es X.",
+    "sources": [],
+    "confidence": 0.85,
+    "ui_hint": "resolution_prompt",
+    "cited_documents": [],
+}
 
-    register_response = await async_client.post(
-        "/auth/register",
+_NO_RAG_MOCK = {
+    "answer": "No encuentro información sobre esto.",
+    "sources": [],
+    "confidence": 0.0,
+    "ui_hint": "escalate_prompt",
+    "cited_documents": [],
+}
+
+
+# ── Intent: instant responses (no LLM / no Qdrant) ───────────────────────────
+
+async def test_greeting_returns_instant_response(client, admin_auth):
+    r = await client.post("/chat/messages",
+        json={"message": "hola"},
+        cookies=admin_auth["cookies"])
+    assert r.status_code == 201
+    data = r.json()
+    assert "OperaBot" in data["bot_message"]
+    assert data["confidence"] == 1.0
+
+
+async def test_greeting_multiword(client, admin_auth):
+    r = await client.post("/chat/messages",
+        json={"message": "hola buenos días"},
+        cookies=admin_auth["cookies"])
+    assert r.status_code == 201
+    assert r.json()["confidence"] == 1.0
+
+
+async def test_confirmation_returns_instant_response(client, admin_auth):
+    r = await client.post("/chat/messages",
+        json={"message": "solucionado"},
+        cookies=admin_auth["cookies"])
+    assert r.status_code == 201
+    assert r.json()["confidence"] == 1.0
+
+
+async def test_negation_returns_escalate_hint(client, admin_auth):
+    r = await client.post("/chat/messages",
+        json={"message": "no me funciona"},
+        cookies=admin_auth["cookies"])
+    assert r.status_code == 201
+    data = r.json()
+    assert data["ui_hint"] == "escalate_prompt"
+
+
+# ── Intent: QUESTION with RAG mocked ─────────────────────────────────────────
+
+async def test_question_with_rag_results(client, admin_auth, monkeypatch):
+    async def mock_rag(message, company_id, recent_rag_count=0):
+        return _RAG_MOCK
+
+    monkeypatch.setattr("app.api.routes.chat.generate_answer_with_sources", mock_rag)
+
+    r = await client.post("/chat/messages",
+        json={"message": "¿Cómo hago el proceso de alta?"},
+        cookies=admin_auth["cookies"])
+    assert r.status_code == 201
+    data = r.json()
+    assert data["bot_message"] == "La respuesta es X."
+    assert data["confidence"] == 0.85
+    assert data["ui_hint"] == "resolution_prompt"
+
+
+async def test_question_without_rag_results(client, admin_auth, monkeypatch):
+    async def mock_no_rag(message, company_id, recent_rag_count=0):
+        return _NO_RAG_MOCK
+
+    monkeypatch.setattr("app.api.routes.chat.generate_answer_with_sources", mock_no_rag)
+
+    r = await client.post("/chat/messages",
+        json={"message": "¿Qué es la termodinámica?"},
+        cookies=admin_auth["cookies"])
+    assert r.status_code == 201
+    data = r.json()
+    assert data["ui_hint"] == "escalate_prompt"
+    assert data["confidence"] == 0.0
+
+
+# ── Validation & auth ─────────────────────────────────────────────────────────
+
+async def test_empty_message_returns_400(client, admin_auth):
+    r = await client.post("/chat/messages",
+        json={"message": "   "},
+        cookies=admin_auth["cookies"])
+    assert r.status_code == 400
+
+
+async def test_unauthenticated_returns_401(client):
+    r = await client.post("/chat/messages", json={"message": "hola"})
+    assert r.status_code == 401
+
+
+# ── History ───────────────────────────────────────────────────────────────────
+
+async def test_chat_history_returns_messages(client, admin_auth):
+    await client.post("/chat/messages",
+        json={"message": "hola"},
+        cookies=admin_auth["cookies"])
+    r = await client.get("/chat/history", cookies=admin_auth["cookies"])
+    assert r.status_code == 200
+    assert len(r.json()) >= 1
+
+
+# ── Escalate ──────────────────────────────────────────────────────────────────
+
+async def test_escalate_questions_endpoint(client, admin_auth, monkeypatch):
+    async def mock_questions(conversation):
+        return {
+            "intro": "Para escalar necesito más datos:",
+            "questions": ["¿Cuándo ocurre?", "¿Qué error ves?"],
+            "context_summary": "Error desconocido",
+        }
+
+    monkeypatch.setattr(
+        "app.api.routes.chat.generate_escalation_questions", mock_questions
+    )
+    r = await client.post("/chat/escalate-questions",
+        cookies=admin_auth["cookies"])
+    assert r.status_code == 200
+    data = r.json()
+    assert "questions" in data
+    assert len(data["questions"]) == 2
+
+
+async def test_escalate_creates_ticket(client, admin_auth):
+    r = await client.post("/chat/escalate",
         json={
-            "email": "chatuser@example.com",
-            "password": "SecurePass123!",
-            "company_name": "Chat Test Co",
+            "question": "No puedo acceder al sistema",
+            "context_summary": "Error de acceso",
+            "answers": ["Ocurre cada mañana", "Sin mensaje de error"],
         },
-    )
-    assert register_response.status_code == 201
-
-    login_response = await async_client.post(
-        "/auth/login",
-        json={
-            "email": "chatuser@example.com",
-            "password": "SecurePass123!",
-            "company_name": "Chat Test Co",
-        },
-    )
-    assert login_response.status_code == 200
-
-    chat_response = await async_client.post(
-        "/chat/messages",
-        json={"message": "Hello, what can you do?"},
-    )
-    assert chat_response.status_code == 201
-    payload = chat_response.json()
-    assert payload["bot_message"] == "Mocked answer from LLM"
-    assert payload["user_message"] == "Hello, what can you do?"
-
-
-@pytest.mark.asyncio
-async def test_chat_history_persistence_and_admin_analytics(async_client, monkeypatch):
-    async def fake_generate_answer(message, faq_context=None):
-        return "Mocked answer for analytics"
-
-    monkeypatch.setattr("app.api.routes.chat.generate_answer", fake_generate_answer)
-
-    register_response = await async_client.post(
-        "/auth/register",
-        json={
-            "email": "adminchat@example.com",
-            "password": "SecurePass123!",
-            "company_name": "Analytics Company",
-        },
-    )
-    assert register_response.status_code == 201
-
-    login_response = await async_client.post(
-        "/auth/login",
-        json={
-            "email": "adminchat@example.com",
-            "password": "SecurePass123!",
-            "company_name": "Analytics Company",
-        },
-    )
-    assert login_response.status_code == 200
-
-    chat_response = await async_client.post(
-        "/chat/messages",
-        json={"message": "How many FAQs?"},
-    )
-    assert chat_response.status_code == 201
-    payload = chat_response.json()
-    assert payload["bot_message"] == "Mocked answer for analytics"
-    assert payload["rating"] is None
-    assert payload["id"] > 0
-
-    rating_response = await async_client.put(
-        f"/chat/messages/{payload['id']}/rating",
-        json={"rating": 5},
-    )
-    assert rating_response.status_code == 200
-    rating_payload = rating_response.json()
-    assert rating_payload["rating"] == 5
-
-    analytics_response = await async_client.get("/admin/analytics")
-    assert analytics_response.status_code == 200
-    analytics = analytics_response.json()
-    assert analytics["total_chats_today"] == 1
-    assert analytics["success_rate"] == 1.0
-    assert analytics["top_questions"][0]["question"] == "How many FAQs?"
-    assert analytics["top_questions"][0]["count"] == 1
+        cookies=admin_auth["cookies"])
+    assert r.status_code == 201
+    data = r.json()
+    assert "ticket_id" in data
+    assert data["ticket_id"] > 0

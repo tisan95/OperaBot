@@ -95,6 +95,7 @@ async def login(
         )
 
         # Set refresh token as HTTP-only cookie
+
         response.set_cookie(
             key="refresh_token",
             value=result["refresh_token"],
@@ -118,6 +119,8 @@ async def login(
 
         return result
 
+    except HTTPException:
+        raise  # e.g. 403 pending user — let it pass through unchanged
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except Exception as e:

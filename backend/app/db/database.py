@@ -38,15 +38,19 @@ class GUID(TypeDecorator):
 # Convert postgres:// to postgresql:// for SQLAlchemy
 DATABASE_URL = settings.DATABASE_URL.replace("postgres://", "postgresql://")
 
-# Create async engine
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=settings.DEBUG,
-    future=True,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
-)
+# SQLite (used in tests) doesn't support pool_size / max_overflow
+_is_sqlite = "sqlite" in DATABASE_URL
+if _is_sqlite:
+    engine = create_async_engine(DATABASE_URL, echo=False, future=True)
+else:
+    engine = create_async_engine(
+        DATABASE_URL,
+        echo=settings.DEBUG,
+        future=True,
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=20,
+    )
 
 # Session factory
 AsyncSessionLocal = async_sessionmaker(

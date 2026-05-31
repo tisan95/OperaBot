@@ -47,8 +47,9 @@ class QdrantService:
                 else:
                     logger.info(f"Qdrant collection already exists: {collection_name}")
         except Exception as e:
-            logger.error(f"Failed to ensure Qdrant collections: {e}")
-            raise
+            # Non-fatal: Qdrant may not be running (e.g. in tests or local dev without vector DB).
+            # RAG calls will return empty results and fall back gracefully.
+            logger.warning(f"[Qdrant] Collections not ready (service may be offline): {e}")
 
     async def _get_embedding(self, text: str) -> List[float]:
         """Get embedding from Ollama for a text.

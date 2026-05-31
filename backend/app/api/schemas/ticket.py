@@ -40,10 +40,15 @@ class TicketResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     resolved_at: Optional[datetime] = None
+    archived_at: Optional[datetime] = None
     user_email: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+
+class CompanySettingsUpdate(BaseModel):
+    ticket_retention_days: int = Field(..., ge=1, le=365)
 
 
 class TicketNoteCreate(BaseModel):

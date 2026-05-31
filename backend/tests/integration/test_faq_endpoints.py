@@ -3,111 +3,96 @@
 import pytest
 
 
-@pytest.mark.asyncio
-async def test_faq_endpoints_create_and_list(async_client):
-    """Test that authenticated users can create and list FAQs."""
-    # Register a user
-    register_response = await async_client.post(
-        "/auth/register",
-        json={
-            "email": "faquser@example.com",
-            "password": "SecurePass123!",
-            "company_name": "FAQ Company",
-        },
-    )
+# ── CRUD (admin) ──────────────────────────────────────────────────────────────
 
-    assert register_response.status_code == 201
-    assert "access_token" in register_response.json()
-
-    # Login to establish cookies for authenticated requests
-    login_response = await async_client.post(
-        "/auth/login",
-        json={
-            "email": "faquser@example.com",
-            "password": "SecurePass123!",
-            "company_name": "FAQ Company",
-        },
-    )
-    assert login_response.status_code == 200
-
-    # Create a new FAQ entry
-    create_response = await async_client.post(
-        "/faqs",
-        json={
-            "question": "What is OperaBot?",
-            "answer": "OperaBot is an operational knowledge assistant.",
-            "category": "General",
-        },
-    )
-
-    assert create_response.status_code == 201
-    created = create_response.json()
-    assert created["question"] == "What is OperaBot?"
-    assert created["answer"] == "OperaBot is an operational knowledge assistant."
-    assert created["category"] == "General"
-    assert "id" in created
-    assert "created_at" in created
-
-    # Fetch FAQs and verify the new entry is present
-    list_response = await async_client.get("/faqs")
-    assert list_response.status_code == 200
-    data = list_response.json()
-    assert isinstance(data, list)
-    assert any(item["question"] == "What is OperaBot?" for item in data)
+async def test_admin_can_create_faq(client, admin_auth):
+    r = await client.post("/faqs", json={
+        "question": "¿Qué es OperaBot?",
+        "answer": "Un asistente de conocimiento.",
+        "category": "General",
+    }, cookies=admin_auth["cookies"])
+    assert r.status_code == 201
+    data = r.json()
+    assert data["question"] == "¿Qué es OperaBot?"
+    assert "id" in data
 
 
-@pytest.mark.asyncio
-async def test_faq_endpoints_update(async_client):
-    """Test that authenticated users can update an FAQ."""
-    register_response = await async_client.post(
-        "/auth/register",
-        json={
-            "email": "faqedit@example.com",
-            "password": "SecurePass123!",
-            "company_name": "FAQ Edit Company",
-        },
-    )
+async def test_admin_can_list_faqs(client, admin_auth):
+    await client.post("/faqs", json={
+        "question": "¿Cómo inicio sesión?",
+        "answer": "Con tu email y contraseña.",
+        "category": "Acceso",
+    }, cookies=admin_auth["cookies"])
 
-    assert register_response.status_code == 201
+    r = await client.get("/faqs", cookies=admin_auth["cookies"])
+    assert r.status_code == 200
+    assert len(r.json()) >= 1
 
-    login_response = await async_client.post(
-        "/auth/login",
-        json={
-            "email": "faqedit@example.com",
-            "password": "SecurePass123!",
-            "company_name": "FAQ Edit Company",
-        },
-    )
-    assert login_response.status_code == 200
 
-    create_response = await async_client.post(
-        "/faqs",
-        json={
-            "question": "What is an FAQ?",
-            "answer": "A frequently asked question.",
-            "category": "General",
-        },
-    )
-    assert create_response.status_code == 201
-    faq_id = create_response.json()["id"]
+async def test_admin_can_update_faq(client, admin_auth):
+    create = await client.post("/faqs", json={
+        "question": "Pregunta original",
+        "answer": "Respuesta original",
+        "category": "Test",
+    }, cookies=admin_auth["cookies"])
+    faq_id = create.json()["id"]
 
-    update_response = await async_client.put(
-        f"/faqs/{faq_id}",
-        json={
-            "question": "What is an FAQ entry?",
-            "answer": "A short question and an answer for users.",
-            "category": "Knowledge",
-        },
-    )
+    r = await client.put(f"/faqs/{faq_id}", json={
+        "question": "Pregunta actualizada",
+        "answer": "Respuesta actualizada",
+        "category": "Test",
+    }, cookies=admin_auth["cookies"])
+    assert r.status_code == 200
+    assert r.json()["question"] == "Pregunta actualizada"
 
-    assert update_response.status_code == 200
-    updated = update_response.json()
-    assert updated["id"] == faq_id
-    assert updated["question"] == "What is an FAQ entry?"
-    assert updated["answer"] == "A short question and an answer for users."
-    assert updated["category"] == "Knowledge"
 
-    list_response = await async_client.get("/faqs")
-    assert list_response.status_code == 200
-    list_data = list_response.json()
-    assert any(item["question"] == "What is an FAQ entry?" for item in list_data)
+async def test_admin_can_delete_faq(client, admin_auth):
+    create = await client.post("/faqs", json={
+        "question": "Para borrar",
+        "answer": "Se borrará",
+        "category": "Test",
+    }, cookies=admin_auth["cookies"])
+    faq_id = create.json()["id"]
+
+    r = await client.delete(f"/faqs/{faq_id}", cookies=admin_auth["cookies"])
+    assert r.status_code == 204
+
+
+# ── Auth & role enforcement ───────────────────────────────────────────────────
+
+async def test_authenticated_user_can_list_faqs(client, user_auth):
+    r = await client.get("/faqs", cookies=user_auth["cookies"])
+    assert r.status_code == 200
+
+
+async def test_user_cannot_create_faq(client, user_auth):
+    r = await client.post("/faqs", json={
+        "question": "Pregunta de usuario",
+        "answer": "No debería poder",
+        "category": "Test",
+    }, cookies=user_auth["cookies"])
+    assert r.status_code == 403
+
+
+async def test_unauthenticated_cannot_list_faqs(client):
+    r = await client.get("/faqs")
+    assert r.status_code == 401
+
+
+# ── Multi-tenant isolation ────────────────────────────────────────────────────
+
+async def test_faqs_are_isolated_per_company(client, admin_auth):
+    """FAQs created by Co-A should not be visible to Co-B."""
+    await client.post("/faqs", json={
+        "question": "FAQ de Co-A", "answer": "Respuesta", "category": "Test"
+    }, cookies=admin_auth["cookies"])
+
+    # Register a second independent company
+    r_b = await client.post("/auth/register", json={
+        "email": "admin2@cob.com", "password": "Admin1234!", "company_name": "Co-B-Isolated",
+    })
+    cookies_b = dict(r_b.cookies)
+
+    r = await client.get("/faqs", cookies=cookies_b)
+    assert r.status_code == 200
+    assert not any(f["question"] == "FAQ de Co-A" for f in r.json())

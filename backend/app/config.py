@@ -31,8 +31,15 @@ class Settings(BaseSettings):
     # File storage — PDFs uploaded by admins
     DOCUMENTS_STORAGE_PATH: str = "./uploads/documents"
 
-    # Not used with Ollama (local LLM)
+    # API key — required for groq and anthropic providers, unused for ollama
     LLM_API_KEY: str | None = None
+
+    # Provider-specific defaults (overridden per provider when LLM_PROVIDER changes)
+    GROQ_API_URL: str = "https://api.groq.com/openai/v1/chat/completions"
+    ANTHROPIC_API_URL: str = "https://api.anthropic.com/v1/messages"
+    ANTHROPIC_VERSION: str = "2023-06-01"
+
+    # Legacy alias, kept for any existing .env files
     GEMINI_API_KEY: str | None = None
 
     # Configuración de Pydantic v2
