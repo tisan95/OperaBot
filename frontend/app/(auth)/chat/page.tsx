@@ -1,6 +1,8 @@
 "use client";
 
 import { apiFetch } from "@/lib/api";
+import { useAuthContext } from "@/components/Auth/AuthProvider";
+import DocumentPreview from "@/components/Shared/DocumentPreview";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Send, MessageSquare, CheckCircle, XCircle, ArrowUpCircle } from "lucide-react";
 
@@ -13,6 +15,11 @@ interface EscalationFormData {
   originalQuestion: string;
 }
 
+interface CitedDocument {
+  id: string;
+  name: string;
+}
+
 interface ChatMessage {
   id: number;
   user_message: string;
@@ -22,6 +29,7 @@ interface ChatMessage {
   isLoading?: boolean;
   isRateLimit?: boolean;
   ui_hint?: "resolution_prompt" | "escalate_prompt" | null;
+  cited_documents?: CitedDocument[];
   // Escalation form embedded in the chat
   isEscalationForm?: true;
   escalationForm?: EscalationFormData;
@@ -188,6 +196,9 @@ function EscalatePrompt({
 // ── Main chat component ───────────────────────────────────────────────────────
 
 export default function ChatPage() {
+  const { user } = useAuthContext();
+  const userRole = user?.role ?? "user";
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -251,6 +262,7 @@ export default function ChatPage() {
         confidence: resp.confidence ?? 0,
         created_at: resp.created_at,
         ui_hint: resp.ui_hint ?? null,
+        cited_documents: resp.cited_documents ?? [],
         isLoading: false,
       });
     } catch (err: any) {
@@ -457,6 +469,20 @@ export default function ChatPage() {
                     >
                       {msg.bot_message}
                     </p>
+
+                    {/* Cited documents — PDF preview cards */}
+                    {msg.cited_documents && msg.cited_documents.length > 0 && (
+                      <div className="mt-3 space-y-1">
+                        {msg.cited_documents.map((doc) => (
+                          <DocumentPreview
+                            key={doc.id}
+                            document_id={doc.id}
+                            document_name={doc.name}
+                            user_role={userRole}
+                          />
+                        ))}
+                      </div>
+                    )}
 
                     {!actionedIds.has(msg.id) && msg.ui_hint === "resolution_prompt" && (
                       <ResolutionPrompt
