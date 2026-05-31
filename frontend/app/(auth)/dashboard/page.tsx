@@ -13,7 +13,11 @@ import {
   CheckCircle,
   Target,
   ArrowRight,
+  Clock,
+  CircleCheck,
+  AlertCircle,
 } from "lucide-react";
+import { Ticket } from "@/lib/types";
 
 interface SystemStats {
   documents: {
@@ -113,6 +117,16 @@ export default function DashboardPage() {
 
   const isAdmin = user?.role === "admin" || user?.role === "super_admin";
   const isSuperAdmin = user?.role === "super_admin";
+  const isUser = user?.role === "user";
+
+  const [myTickets, setMyTickets] = useState<Ticket[]>([]);
+
+  useEffect(() => {
+    if (!isUser) return;
+    apiFetch("/tickets/my")
+      .then((data) => setMyTickets(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [isUser]);
 
   useEffect(() => {
     if (!isSuperAdmin) {
@@ -261,6 +275,62 @@ export default function DashboardPage() {
             </>
           ) : null}
         </>
+      )}
+
+      {/* Mis consultas escaladas — solo user con tickets */}
+      {isUser && myTickets.length > 0 && (
+        <section>
+          <h2 className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: "#555555" }}>
+            Mis consultas escaladas
+          </h2>
+          <div className="space-y-3">
+            {myTickets.map((ticket) => {
+              const isResolved = ticket.status === "resolved";
+              const isPending = ticket.status === "open";
+              return (
+                <div
+                  key={ticket.id}
+                  className="card card-padding space-y-2"
+                  style={isResolved ? { borderColor: "rgba(56,161,105,0.3)" } : {}}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="shrink-0 mt-0.5">
+                      {isResolved ? (
+                        <CircleCheck size={15} strokeWidth={1.75} style={{ color: "#38A169" }} />
+                      ) : isPending ? (
+                        <AlertCircle size={15} strokeWidth={1.75} style={{ color: "#C9A84C" }} />
+                      ) : (
+                        <Clock size={15} strokeWidth={1.75} style={{ color: "#888888" }} />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium" style={{ color: "#F5F5F5" }}>
+                        {ticket.question}
+                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: "#555555" }}>
+                        {isResolved ? "Resuelto" : isPending ? "Pendiente" : "En revisión"} ·{" "}
+                        {new Date(ticket.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  {isResolved && ticket.resolution_message && (
+                    <div
+                      className="rounded-lg border px-3 py-2"
+                      style={{ backgroundColor: "rgba(56,161,105,0.06)", borderColor: "rgba(56,161,105,0.2)" }}
+                    >
+                      <p className="text-xs font-semibold mb-1" style={{ color: "#38A169" }}>
+                        Respuesta del equipo
+                      </p>
+                      <p className="text-sm" style={{ color: "#F5F5F5" }}>
+                        {ticket.resolution_message}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
       )}
 
       {/* Quick Actions */}

@@ -36,6 +36,28 @@ export interface AuthContextType {
   isAuthenticated: boolean;
 }
 
+export interface Ticket {
+  id: number;
+  question: string;
+  status: "open" | "in_progress" | "resolved";
+  priority: "low" | "medium" | "high";
+  notes?: string | null;
+  resolution_message?: string | null;
+  created_at: string;
+  updated_at: string;
+  resolved_at?: string | null;
+  user_email?: string | null;
+}
+
+export interface TicketNote {
+  id: number;
+  ticket_id: number;
+  author_id: string;
+  author_email?: string | null;
+  content: string;
+  created_at: string;
+}
+
 export interface ApiResponse<T> {
   success?: boolean;
   data?: T;
