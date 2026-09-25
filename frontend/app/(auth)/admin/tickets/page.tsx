@@ -4,18 +4,26 @@ import { useAuthContext } from "@/components/Auth/AuthProvider";
 import { apiFetch } from "@/lib/api";
 import { Ticket, TicketNote } from "@/lib/types";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { X, Plus, ChevronDown, ChevronUp } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { X, Plus } from "lucide-react";
 import RichEditor from "@/components/Shared/RichEditor";
+import EmptyState from "@/components/Shared/EmptyState";
 import { sanitizeHtml } from "@/lib/sanitize";
+import { Inbox } from "lucide-react";
 
 const isEmptyHtml = (html: string) =>
   !html || html.replace(/<[^>]*>/g, "").trim().length === 0;
 
 const statusLabels: Record<string, string> = {
-  open: "Open",
-  in_progress: "In Progress",
-  resolved: "Resolved",
+  open:        "Abierto",
+  in_progress: "En Progreso",
+  resolved:    "Resuelto",
+};
+
+const priorityLabels: Record<string, string> = {
+  high:   "Alta",
+  medium: "Media",
+  low:    "Baja",
 };
 
 const priorityClasses: Record<string, string> = {
@@ -24,7 +32,7 @@ const priorityClasses: Record<string, string> = {
   low:    "bg-success/8 text-success border-success/25",
 };
 
-// ── TicketDetail — panel expandible ─────────────────────────────────────────
+// ── TicketDetail ─────────────────────────────────────────────────────────────
 
 function TicketDetail({
   ticket,
@@ -35,20 +43,49 @@ function TicketDetail({
   onClose: () => void;
   onUpdated: () => void;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [notes, setNotes] = useState<TicketNote[]>([]);
   const [noteText, setNoteText] = useState("");
   const [savingNote, setSavingNote] = useState(false);
-
   const [resolutionMsg, setResolutionMsg] = useState(ticket.resolution_message ?? "");
   const [createFaq, setCreateFaq] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [movingInProgress, setMovingInProgress] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Escape para cerrar
   useEffect(() => {
-    apiFetch(`/tickets/${ticket.id}/notes`)
-      .then(setNotes)
-      .catch(() => {});
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  // Focus trap
+  useEffect(() => {
+    const el = dialogRef.current;
+    if (!el) return;
+    const focusable = Array.from(
+      el.querySelectorAll<HTMLElement>(
+        'button:not([disabled]),input:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
+      )
+    );
+    focusable[0]?.focus();
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key !== "Tab" || focusable.length === 0) return;
+      const first = focusable[0];
+      const last  = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last)  { e.preventDefault(); first.focus(); }
+      }
+    };
+    document.addEventListener("keydown", handleTab);
+    return () => document.removeEventListener("keydown", handleTab);
+  }, []);
+
+  useEffect(() => {
+    apiFetch(`/tickets/${ticket.id}/notes`).then(setNotes).catch(() => {});
   }, [ticket.id]);
 
   const addNote = async () => {
@@ -100,11 +137,7 @@ function TicketDetail({
       if (createFaq) {
         await apiFetch("/faqs", {
           method: "POST",
-          body: JSON.stringify({
-            question: ticket.question,
-            answer: resolutionMsg.trim(),
-            category: "Tickets",
-          }),
+          body: JSON.stringify({ question: ticket.question, answer: resolutionMsg.trim(), category: "Tickets" }),
         });
       }
       onUpdated();
@@ -116,37 +149,40 @@ function TicketDetail({
     }
   };
 
-  const pClasses = priorityClasses[ticket.priority] ?? priorityClasses["medium"];
+  const pClasses   = priorityClasses[ticket.priority] ?? priorityClasses["medium"];
   const canMoveInProgress = ticket.status === "open";
-  const canResolve = ticket.status === "in_progress";
-  const isResolved = ticket.status === "resolved";
+  const canResolve        = ticket.status === "in_progress";
+  const isResolved        = ticket.status === "resolved";
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/70"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 animate-backdropIn"
+      style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="w-full max-w-2xl rounded-2xl border overflow-hidden flex flex-col bg-card border-border"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={ticket.question}
+        className="w-full max-w-2xl rounded-2xl border overflow-hidden flex flex-col bg-card border-border animate-modalIn"
         style={{ maxHeight: "90vh" }}
       >
         {/* Header */}
-        <div className="flex items-start justify-between p-5 border-b border-border">
+        <div className="flex items-start justify-between p-5 border-b border-border shrink-0">
           <div className="flex-1 min-w-0 pr-4">
             <p className="text-base font-semibold leading-snug text-text-primary">
               {ticket.question}
             </p>
             <div className="flex flex-wrap items-center gap-2 mt-2">
               <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${pClasses}`}>
-                {ticket.priority}
+                {priorityLabels[ticket.priority] ?? ticket.priority}
               </span>
               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border bg-white/[0.04] text-text-secondary border-border">
                 {statusLabels[ticket.status]}
               </span>
               {ticket.user_email && (
-                <span className="text-xs text-muted">
-                  por {ticket.user_email}
-                </span>
+                <span className="text-xs text-muted">por {ticket.user_email}</span>
               )}
               <span className="text-xs text-muted">
                 {new Date(ticket.created_at).toLocaleString()}
@@ -156,6 +192,7 @@ function TicketDetail({
           <button
             onClick={onClose}
             className="shrink-0 p-1 rounded-lg transition-colors text-text-secondary hover:text-text-primary"
+            aria-label="Cerrar"
           >
             <X size={16} strokeWidth={1.5} />
           </button>
@@ -168,7 +205,7 @@ function TicketDetail({
             </div>
           )}
 
-          {/* Resolved message */}
+          {/* Respuesta al usuario (resolved) */}
           {isResolved && ticket.resolution_message && (
             <div className="rounded-xl border p-4 bg-success/6 border-success/20">
               <p className="text-xs font-semibold uppercase tracking-wider mb-2 text-success">
@@ -181,7 +218,7 @@ function TicketDetail({
             </div>
           )}
 
-          {/* Notes section */}
+          {/* Notas internas */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider mb-3 text-text-secondary">
               Notas internas ({notes.length})
@@ -191,10 +228,7 @@ function TicketDetail({
                 <p className="text-xs italic text-muted">Sin notas aún.</p>
               )}
               {notes.map((n) => (
-                <div
-                  key={n.id}
-                  className="rounded-lg border px-4 py-3 bg-surface border-border"
-                >
+                <div key={n.id} className="rounded-lg border px-4 py-3 bg-surface border-border">
                   <div
                     className="rich-content text-sm"
                     dangerouslySetInnerHTML={{ __html: sanitizeHtml(n.content) }}
@@ -207,12 +241,7 @@ function TicketDetail({
             </div>
             {!isResolved && (
               <div className="space-y-2">
-                <RichEditor
-                  content={noteText}
-                  onChange={setNoteText}
-                  placeholder="Añadir nota interna..."
-                  minHeight={80}
-                />
+                <RichEditor content={noteText} onChange={setNoteText} placeholder="Añadir nota interna..." minHeight={80} />
                 <button
                   onClick={addNote}
                   disabled={savingNote || isEmptyHtml(noteText)}
@@ -225,21 +254,13 @@ function TicketDetail({
             )}
           </div>
 
-          {/* Move to In Progress */}
+          {canMoveInProgress && <div className="divider" />}
           {canMoveInProgress && (
-            <div className="divider" />
-          )}
-          {canMoveInProgress && (
-            <button
-              onClick={moveToInProgress}
-              disabled={movingInProgress}
-              className="btn btn-secondary w-full"
-            >
-              {movingInProgress ? "Guardando..." : "Mover a In Progress"}
+            <button onClick={moveToInProgress} disabled={movingInProgress} className="btn btn-secondary w-full">
+              {movingInProgress ? "Guardando..." : "Mover a En Progreso"}
             </button>
           )}
 
-          {/* Resolution section */}
           {canResolve && (
             <>
               <div className="divider" />
@@ -284,11 +305,11 @@ function TicketDetail({
 
 export default function AdminTicketsPage() {
   const { user } = useAuthContext();
-  const router = useRouter();
+  const router   = useRouter();
 
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [tickets, setTickets]             = useState<Ticket[]>([]);
+  const [isLoading, setIsLoading]         = useState(true);
+  const [error, setError]                 = useState<string | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
 
   useEffect(() => {
@@ -308,17 +329,17 @@ export default function AdminTicketsPage() {
     }
   };
 
-  useEffect(() => {
-    loadTickets();
-  }, []);
+  useEffect(() => { loadTickets(); }, []);
 
   if (user && user.role === "user") return null;
 
   const renderColumn = (status: string, title: string) => {
     const cols = tickets.filter((t) => t.status === status);
     return (
-      <div className="space-y-3">
-        <div className="rounded-lg border px-4 py-3 bg-surface border-border">
+      /* Columna: scroll interno + sticky header */
+      <div className="flex flex-col overflow-y-auto max-h-[calc(100vh-280px)] rounded-xl">
+        {/* Header sticky dentro del scroll container */}
+        <div className="sticky top-0 z-10 rounded-t-lg border border-b-0 px-4 py-3 bg-surface border-border shrink-0">
           <h2 className="text-xs font-semibold uppercase tracking-widest text-text-secondary">
             {title}
           </h2>
@@ -327,11 +348,14 @@ export default function AdminTicketsPage() {
           </p>
         </div>
 
-        <div className="space-y-3">
+        {/* Contenido scrollable */}
+        <div className="flex flex-col gap-3 p-3 border border-t-0 rounded-b-xl border-border min-h-[80px]">
           {cols.length === 0 ? (
-            <div className="rounded-xl border-dashed border px-4 py-6 text-center text-sm border-border text-muted">
-              Sin tickets
-            </div>
+            <EmptyState
+              icon={Inbox}
+              title="Sin tickets"
+              description="Nada en esta columna por ahora."
+            />
           ) : (
             cols.map((ticket) => {
               const pClasses = priorityClasses[ticket.priority] ?? priorityClasses["medium"];
@@ -340,14 +364,14 @@ export default function AdminTicketsPage() {
                   key={ticket.id}
                   type="button"
                   onClick={() => setSelectedTicket(ticket)}
-                  className="card rounded-xl p-4 space-y-3 w-full text-left transition-all duration-150 cursor-pointer hover:border-[#3A3A3A]"
+                  className="card rounded-xl p-4 space-y-3 w-full text-left transition-all duration-150 cursor-pointer hover:border-[#3A3A3A] hover:bg-card-hover"
                 >
                   <p className="text-sm font-medium leading-snug text-text-primary">
                     {ticket.question}
                   </p>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${pClasses}`}>
-                      {ticket.priority}
+                      {priorityLabels[ticket.priority] ?? ticket.priority}
                     </span>
                     <span className="text-xs text-muted">
                       {new Date(ticket.created_at).toLocaleDateString()}
@@ -374,7 +398,7 @@ export default function AdminTicketsPage() {
           Kanban de Tickets
         </h1>
         <p className="text-sm mt-1 text-text-secondary">
-          Haz click en una tarjeta para gestionarla.
+          Haz clic en una tarjeta para gestionarla.
         </p>
       </div>
 
@@ -392,9 +416,9 @@ export default function AdminTicketsPage() {
         </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-3">
-          {renderColumn("open", "Open")}
-          {renderColumn("in_progress", "In Progress")}
-          {renderColumn("resolved", "Resolved")}
+          {renderColumn("open",        "Abierto")}
+          {renderColumn("in_progress", "En Progreso")}
+          {renderColumn("resolved",    "Resuelto")}
         </div>
       )}
 
@@ -402,10 +426,7 @@ export default function AdminTicketsPage() {
         <TicketDetail
           ticket={selectedTicket}
           onClose={() => setSelectedTicket(null)}
-          onUpdated={() => {
-            loadTickets();
-            setSelectedTicket(null);
-          }}
+          onUpdated={() => { loadTickets(); setSelectedTicket(null); }}
         />
       )}
     </div>

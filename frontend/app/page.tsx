@@ -11,16 +11,16 @@ export default function LoginPage() {
               OperaBot
             </h1>
             <p className="text-sm mt-2 text-text-secondary">
-              Operational Knowledge Assistant
+              Asistente de Conocimiento Operacional
             </p>
           </div>
 
           <LoginForm />
 
           <p className="text-center text-sm mt-6 text-text-secondary">
-            New to OperaBot?{" "}
+            ¿Nuevo en OperaBot?{" "}
             <Link href="/register" className="font-medium text-gold">
-              Create an account
+              Crea una cuenta
             </Link>
           </p>
         </div>

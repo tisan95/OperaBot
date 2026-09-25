@@ -9,7 +9,8 @@ module.exports = {
       colors: {
         bg:               '#0A0A0A',
         surface:          '#111111',
-        card:             '#1A1A1A',
+        card:             '#222222',
+        'card-hover':     '#262626',
         border:           '#2A2A2A',
         gold:             '#C9A84C',
         'gold-dark':      '#2A2000',

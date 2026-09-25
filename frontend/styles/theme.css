@@ -2,7 +2,8 @@
   /* OperaBot Premium Dark Theme */
   --color-bg-base:       #0A0A0A;   /* fondo principal */
   --color-bg-surface:    #111111;   /* header, topbar */
-  --color-bg-card:       #1A1A1A;   /* cards, panels, inputs */
+  --color-bg-card:       #222222;   /* cards, panels, inputs */
+  --color-bg-card-hover: #262626;   /* hover sobre cards */
   --color-bg-hover:      #222222;   /* hover filas */
 
   --color-gold:          #C9A84C;   /* acento dorado principal */

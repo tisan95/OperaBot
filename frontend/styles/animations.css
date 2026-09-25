@@ -65,6 +65,31 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/* Modal entry animation */
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes backdropIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-modalIn {
+  animation: modalIn 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-backdropIn {
+  animation: backdropIn 180ms ease-out forwards;
+}
+
 /* Chat-specific animations */
 .chat-bubble {
   animation: fadeIn 0.3s ease-in-out;

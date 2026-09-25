@@ -27,7 +27,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
       onSuccess?.();
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.message || "Login failed. Please try again.");
+      setError(err.message || "Error al iniciar sesión. Inténtalo de nuevo.");
     } finally {
       setLoading(false);
     }
@@ -43,7 +43,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
 
       <div>
         <label className="block text-xs font-medium mb-1.5 text-text-secondary">
-          Company Name
+          Nombre de empresa
         </label>
         <input
           type="text"
@@ -51,7 +51,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
           onChange={(e) => setCompanyName(e.target.value)}
           required
           className="input"
-          placeholder="Your company name"
+          placeholder="Tu empresa"
           disabled={loading}
         />
       </div>
@@ -66,14 +66,14 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
           onChange={(e) => setEmail(e.target.value)}
           required
           className="input"
-          placeholder="you@example.com"
+          placeholder="tu@empresa.com"
           disabled={loading}
         />
       </div>
 
       <div>
         <label className="block text-xs font-medium mb-1.5 text-text-secondary">
-          Password
+          Contraseña
         </label>
         <input
           type="password"
@@ -87,7 +87,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
       </div>
 
       <button type="submit" disabled={loading} className="btn btn-primary w-full mt-2">
-        {loading ? "Logging in..." : "Login"}
+        {loading ? "Iniciando sesión..." : "Iniciar sesión"}
       </button>
     </form>
   );

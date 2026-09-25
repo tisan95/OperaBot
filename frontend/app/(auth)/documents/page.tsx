@@ -4,7 +4,8 @@ import { apiFetch } from "@/lib/api";
 import { useAuthContext } from "@/components/Auth/AuthProvider";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import { UploadCloud, FileText, Trash2 } from "lucide-react";
+import { UploadCloud, FileText, Trash2, FolderOpen } from "lucide-react";
+import EmptyState from "@/components/Shared/EmptyState";
 
 export default function DocumentsPage() {
   const { user } = useAuthContext();
@@ -183,9 +184,11 @@ export default function DocumentsPage() {
               Cargando documentos...
             </p>
           ) : documents.length === 0 ? (
-            <p className="text-sm px-2 italic text-muted">
-              No hay documentos aún.
-            </p>
+            <EmptyState
+              icon={FolderOpen}
+              title="Sin documentos"
+              description="Sube un PDF para vectorizarlo en la base de conocimiento."
+            />
           ) : (
             documents.map((doc) => (
               <div

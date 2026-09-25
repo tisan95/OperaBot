@@ -4,13 +4,20 @@ import { apiFetch } from "@/lib/api";
 import { Ticket } from "@/lib/types";
 import { useEffect, useState } from "react";
 import { sanitizeHtml } from "@/lib/sanitize";
-import { CircleCheck, Clock, AlertCircle } from "lucide-react";
+import { CircleCheck, Clock, AlertCircle, Inbox } from "lucide-react";
+import EmptyState from "@/components/Shared/EmptyState";
 
 const statusConfig = {
   open:        { label: "Pendiente",   icon: AlertCircle, colorClass: "text-gold"           },
   in_progress: { label: "En revisión", icon: Clock,       colorClass: "text-text-secondary" },
   resolved:    { label: "Resuelto",    icon: CircleCheck, colorClass: "text-success"         },
 } as const;
+
+const priorityLabels: Record<string, string> = {
+  high:   "Alta",
+  medium: "Media",
+  low:    "Baja",
+};
 
 const priorityClasses: Record<string, string> = {
   high:   "bg-error/8 text-error border-error/25",
@@ -54,11 +61,11 @@ export default function MyTicketsPage() {
           ))}
         </div>
       ) : tickets.length === 0 ? (
-        <div className="card card-padding text-center">
-          <p className="text-sm text-text-secondary">
-            No tienes consultas escaladas.
-          </p>
-        </div>
+        <EmptyState
+          icon={Inbox}
+          title="Sin consultas escaladas"
+          description="Cuando una pregunta en el chat se escale al equipo, aparecerá aquí."
+        />
       ) : (
         <div className="space-y-4">
           {tickets.map((ticket) => {
@@ -81,7 +88,7 @@ export default function MyTicketsPage() {
                     </p>
                     <div className="flex flex-wrap items-center gap-2 mt-1.5">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${pClasses}`}>
-                        {ticket.priority}
+                        {priorityLabels[ticket.priority] ?? ticket.priority}
                       </span>
                       <span className={`text-xs ${cfg.colorClass}`}>
                         {cfg.label}

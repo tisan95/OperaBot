@@ -11,16 +11,16 @@ export default function RegisterPage() {
               OperaBot
             </h1>
             <p className="text-sm mt-2 text-text-secondary">
-              Create your account
+              Crea tu cuenta
             </p>
           </div>
 
           <RegisterForm />
 
           <p className="text-center text-sm mt-6 text-text-secondary">
-            Already have an account?{" "}
+            ¿Ya tienes una cuenta?{" "}
             <Link href="/" className="font-medium text-gold">
-              Login
+              Inicia sesión
             </Link>
           </p>
         </div>

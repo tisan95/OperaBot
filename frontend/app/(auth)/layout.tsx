@@ -5,6 +5,7 @@ import ErrorBoundary from "@/components/Shared/ErrorBoundary";
 import Header from "@/components/Shared/Header";
 import LoadingSpinner from "@/components/Shared/LoadingSpinner";
 import Sidebar from "@/components/Shared/Sidebar";
+import { SidebarProvider } from "@/components/Shared/SidebarContext";
 import { useRouter } from "next/navigation";
 import { ReactNode } from "react";
 
@@ -44,16 +45,20 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
   }
 
   return (
-    <ErrorBoundary>
-      <div className="min-h-screen bg-bg">
-        <Header />
-        <div className="flex">
-          <Sidebar />
-          <main className="flex-1 px-6 py-8">
-            {children}
-          </main>
+    <SidebarProvider>
+      <ErrorBoundary>
+        {/* h-screen + overflow-hidden = shell layout. main scrolls internally. */}
+        <div className="h-screen flex flex-col bg-bg overflow-hidden">
+          <Header />
+          <div className="flex flex-1 min-h-0">
+            <Sidebar />
+            {/* flex flex-col permite que hijos con flex-1 llenen el espacio (chat) */}
+            <main className="flex-1 min-h-0 overflow-y-auto px-6 py-8 flex flex-col">
+              {children}
+            </main>
+          </div>
         </div>
-      </div>
-    </ErrorBoundary>
+      </ErrorBoundary>
+    </SidebarProvider>
   );
 }

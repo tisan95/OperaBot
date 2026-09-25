@@ -369,10 +369,7 @@ export default function ChatPage() {
   // ── Render ──
 
   return (
-    <div
-      className="flex flex-col rounded-xl border bg-bg border-border"
-      style={{ height: "calc(100vh - 120px)" }}
-    >
+    <div className="flex flex-col flex-1 min-h-0 rounded-xl border bg-bg border-border">
       {/* Header */}
       <div className="border-b px-6 py-4 shrink-0 flex items-center justify-between bg-surface border-border">
         <div>
@@ -424,7 +421,7 @@ export default function ChatPage() {
                 className={`max-w-2xl rounded-2xl rounded-bl-none p-4 border ${
                   msg.isRateLimit
                     ? "bg-gold/6 border-gold/20"
-                    : "bg-card border-border"
+                    : "bg-card border-border border-l-[3px] border-l-gold"
                 }`}
               >
                 {msg.isLoading ? (

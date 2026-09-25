@@ -101,7 +101,7 @@ const ServiceStatus = ({
         </p>
       </div>
       <span className={isHealthy ? "badge-success" : "badge-error"}>
-        {isHealthy ? "Healthy" : "Unavailable"}
+        {isHealthy ? "Activo" : "No disponible"}
       </span>
     </div>
   );
@@ -159,7 +159,7 @@ export default function DashboardPage() {
         </h1>
         <div className="flex items-center gap-3 mt-2 flex-wrap">
           <p className="text-sm text-text-secondary">
-            {company?.name} · Operational Knowledge Assistant
+            {company?.name} · Asistente de Conocimiento Operacional
           </p>
           {isSuperAdmin && <span className="badge-primary">Super Admin</span>}
           {user?.role === "admin" && <span className="badge-primary">Admin</span>}
@@ -184,39 +184,39 @@ export default function DashboardPage() {
             <>
               <section>
                 <h2 className="text-xs font-semibold uppercase tracking-widest mb-4 text-muted">
-                  Knowledge Base
+                  Base de Conocimiento
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <MetricCard
                     icon={FileText}
-                    title="Documents"
+                    title="Documentos"
                     value={stats.documents.total_documents}
-                    subtitle={`${stats.documents.total_vectors} vectors`}
+                    subtitle={`${stats.documents.total_vectors} vectores`}
                   />
                   <MetricCard
                     icon={BookOpen}
                     title="FAQs"
                     value={stats.faqs.total_faqs}
-                    subtitle={`${stats.faqs.total_vectors} vectors`}
+                    subtitle={`${stats.faqs.total_vectors} vectores`}
                   />
                   <MetricCard
                     icon={HardDrive}
-                    title="Storage"
+                    title="Almacenamiento"
                     value={`${(stats.documents.total_size_bytes / 1024).toFixed(1)} KB`}
-                    subtitle="Total docs"
+                    subtitle="Total documentos"
                   />
                   <MetricCard
                     icon={TrendingUp}
-                    title="Processed Today"
+                    title="Procesados Hoy"
                     value={stats.documents.documents_processed_today}
-                    subtitle="new documents"
+                    subtitle="nuevos documentos"
                   />
                 </div>
               </section>
 
               <section>
                 <h2 className="text-xs font-semibold uppercase tracking-widest mb-4 text-muted">
-                  Chat Analytics (hoy)
+                  Analíticas del Chat (hoy)
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <MetricCard
@@ -227,13 +227,13 @@ export default function DashboardPage() {
                   />
                   <MetricCard
                     icon={CheckCircle}
-                    title="Success Rate"
+                    title="Tasa de Éxito"
                     value={`${(stats.chat_today.success_rate * 100).toFixed(1)}%`}
                     subtitle="respuestas RAG"
                   />
                   <MetricCard
                     icon={Target}
-                    title="Confidence"
+                    title="Precisión"
                     value={`${(stats.chat_today.avg_confidence * 100).toFixed(0)}%`}
                     subtitle="score promedio"
                   />
@@ -242,7 +242,7 @@ export default function DashboardPage() {
 
               <section>
                 <h2 className="text-xs font-semibold uppercase tracking-widest mb-4 text-muted">
-                  System Services
+                  Estado del Sistema
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {stats.services.map((service) => (
@@ -315,7 +315,7 @@ export default function DashboardPage() {
       {/* Quick Actions */}
       <section>
         <h2 className="text-xs font-semibold uppercase tracking-widest mb-4 text-muted">
-          Quick Actions
+          Acciones Rápidas
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Link

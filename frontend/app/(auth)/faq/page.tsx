@@ -5,7 +5,9 @@ import { FAQ } from "@/lib/types";
 import { FormEvent, useEffect, useState } from "react";
 import { useAuthContext } from "@/components/Auth/AuthProvider";
 import RichEditor from "@/components/Shared/RichEditor";
+import EmptyState from "@/components/Shared/EmptyState";
 import { sanitizeHtml } from "@/lib/sanitize";
+import { BookOpen } from "lucide-react";
 
 export default function FAQPage() {
   const { user } = useAuthContext();
@@ -148,9 +150,11 @@ export default function FAQPage() {
                 {error}
               </p>
             ) : faqs.length === 0 ? (
-              <p className="text-sm text-text-secondary">
-                No hay FAQs todavía.
-              </p>
+              <EmptyState
+                icon={BookOpen}
+                title="Sin preguntas frecuentes"
+                description="Añade la primera FAQ usando el formulario de la derecha."
+              />
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">

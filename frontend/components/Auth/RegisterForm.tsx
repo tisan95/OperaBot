@@ -19,7 +19,7 @@ export default function RegisterForm() {
     setError("");
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError("Las contraseñas no coinciden.");
       return;
     }
 
@@ -29,7 +29,7 @@ export default function RegisterForm() {
       await register(email, password, companyName);
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.message || "Registration failed. Please try again.");
+      setError(err.message || "Error al registrarse. Inténtalo de nuevo.");
     } finally {
       setLoading(false);
     }
@@ -45,7 +45,7 @@ export default function RegisterForm() {
 
       <div>
         <label className="block text-xs font-medium mb-1.5 text-text-secondary">
-          Company Name
+          Nombre de empresa
         </label>
         <input
           type="text"
@@ -53,7 +53,7 @@ export default function RegisterForm() {
           onChange={(e) => setCompanyName(e.target.value)}
           required
           className="input"
-          placeholder="Your company name"
+          placeholder="Tu empresa"
           disabled={loading}
         />
       </div>
@@ -68,14 +68,14 @@ export default function RegisterForm() {
           onChange={(e) => setEmail(e.target.value)}
           required
           className="input"
-          placeholder="you@example.com"
+          placeholder="tu@empresa.com"
           disabled={loading}
         />
       </div>
 
       <div>
         <label className="block text-xs font-medium mb-1.5 text-text-secondary">
-          Password
+          Contraseña
         </label>
         <input
           type="password"
@@ -87,12 +87,12 @@ export default function RegisterForm() {
           placeholder="••••••••"
           disabled={loading}
         />
-        <p className="text-xs mt-1 text-muted">Minimum 8 characters</p>
+        <p className="text-xs mt-1 text-muted">Mínimo 8 caracteres</p>
       </div>
 
       <div>
         <label className="block text-xs font-medium mb-1.5 text-text-secondary">
-          Confirm Password
+          Confirmar contraseña
         </label>
         <input
           type="password"
@@ -106,7 +106,7 @@ export default function RegisterForm() {
       </div>
 
       <button type="submit" disabled={loading} className="btn btn-primary w-full mt-2">
-        {loading ? "Creating account..." : "Create Account"}
+        {loading ? "Creando cuenta..." : "Crear cuenta"}
       </button>
     </form>
   );
