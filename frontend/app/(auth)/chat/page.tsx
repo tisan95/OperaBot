@@ -56,7 +56,7 @@ function EscalationForm({
 
   if (done) {
     return (
-      <p className="text-sm" style={{ color: "#888888" }}>
+      <p className="text-sm text-text-secondary">
         Formulario enviado.
       </p>
     );
@@ -66,13 +66,13 @@ function EscalationForm({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm leading-relaxed" style={{ color: "#F5F5F5" }}>
+      <p className="text-sm leading-relaxed text-text-primary">
         {data.intro}
       </p>
 
       {data.questions.map((q, i) => (
         <div key={i}>
-          <label className="block text-xs font-medium mb-1.5" style={{ color: "#888888" }}>
+          <label className="block text-xs font-medium mb-1.5 text-text-secondary">
             {q}
           </label>
           <textarea
@@ -129,13 +129,12 @@ function ResolutionPrompt({
 }) {
   const [escalating, setEscalating] = useState(false);
   return (
-    <div className="flex gap-2 mt-3 pt-3 border-t" style={{ borderColor: "#2A2A2A" }}>
+    <div className="flex gap-2 mt-3 pt-3 border-t border-border">
       <button
         onClick={() => onResolved(msgId)}
-        className="btn btn-sm flex items-center gap-1.5 flex-1 justify-center"
-        style={{ backgroundColor: "rgba(56,161,105,0.1)", borderColor: "rgba(56,161,105,0.3)", color: "#38A169", border: "1px solid" }}
+        className="btn btn-sm flex items-center gap-1.5 flex-1 justify-center border bg-success/10 border-success/30 text-success"
       >
-        <CheckCircle size={13} strokeWidth={2} />
+        <CheckCircle size={13} strokeWidth={1.5} />
         Sí, resuelto
       </button>
       <button
@@ -145,10 +144,9 @@ function ResolutionPrompt({
           setEscalating(false);
         }}
         disabled={escalating}
-        className="btn btn-sm flex items-center gap-1.5 flex-1 justify-center"
-        style={{ backgroundColor: "rgba(229,62,62,0.08)", borderColor: "rgba(229,62,62,0.25)", color: "#E53E3E", border: "1px solid" }}
+        className="btn btn-sm flex items-center gap-1.5 flex-1 justify-center border bg-error/8 border-error/25 text-error"
       >
-        <XCircle size={13} strokeWidth={2} />
+        <XCircle size={13} strokeWidth={1.5} />
         {escalating ? "Preparando..." : "No me ha servido"}
       </button>
     </div>
@@ -168,7 +166,7 @@ function EscalatePrompt({
 }) {
   const [escalating, setEscalating] = useState(false);
   return (
-    <div className="flex gap-2 mt-3 pt-3 border-t" style={{ borderColor: "#2A2A2A" }}>
+    <div className="flex gap-2 mt-3 pt-3 border-t border-border">
       <button
         onClick={async () => {
           setEscalating(true);
@@ -176,16 +174,14 @@ function EscalatePrompt({
           setEscalating(false);
         }}
         disabled={escalating}
-        className="btn btn-sm flex items-center gap-1.5 flex-1 justify-center"
-        style={{ backgroundColor: "rgba(201,168,76,0.1)", borderColor: "rgba(201,168,76,0.3)", color: "#C9A84C", border: "1px solid" }}
+        className="btn btn-sm flex items-center gap-1.5 flex-1 justify-center border bg-gold/10 border-gold/30 text-gold"
       >
-        <ArrowUpCircle size={13} strokeWidth={2} />
+        <ArrowUpCircle size={13} strokeWidth={1.5} />
         {escalating ? "Preparando..." : "Escalar al equipo"}
       </button>
       <button
         onClick={() => onDismiss(msgId)}
-        className="btn btn-sm"
-        style={{ backgroundColor: "transparent", borderColor: "#2A2A2A", color: "#888888", border: "1px solid" }}
+        className="btn btn-sm border border-border text-text-secondary"
       >
         No, gracias
       </button>
@@ -374,24 +370,21 @@ export default function ChatPage() {
 
   return (
     <div
-      className="flex flex-col rounded-xl border"
-      style={{ height: "calc(100vh - 120px)", backgroundColor: "#0A0A0A", borderColor: "#2A2A2A" }}
+      className="flex flex-col rounded-xl border bg-bg border-border"
+      style={{ height: "calc(100vh - 120px)" }}
     >
       {/* Header */}
-      <div
-        className="border-b px-6 py-4 shrink-0 flex items-center justify-between"
-        style={{ backgroundColor: "#111111", borderColor: "#2A2A2A" }}
-      >
+      <div className="border-b px-6 py-4 shrink-0 flex items-center justify-between bg-surface border-border">
         <div>
-          <h1 className="text-base font-semibold" style={{ color: "#F5F5F5" }}>Chat</h1>
-          <p className="text-xs mt-0.5" style={{ color: "#888888" }}>
+          <h1 className="text-base font-semibold text-text-primary">Chat</h1>
+          <p className="text-xs mt-0.5 text-text-secondary">
             Consulta sobre tu base de conocimiento operacional
           </p>
         </div>
         {hasPendingPrompt && (
           <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "#C9A84C" }} />
-            <span className="text-xs" style={{ color: "#C9A84C" }}>Valoración pendiente</span>
+            <span className="w-2 h-2 rounded-full bg-gold" />
+            <span className="text-xs text-gold">Valoración pendiente</span>
           </div>
         )}
       </div>
@@ -401,16 +394,13 @@ export default function ChatPage() {
         {messages.length === 0 && (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 border"
-                style={{ backgroundColor: "#1A1A1A", borderColor: "#2A2A2A" }}
-              >
-                <MessageSquare size={20} strokeWidth={1.5} style={{ color: "#C9A84C" }} />
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 border bg-card border-border">
+                <MessageSquare size={20} strokeWidth={1.5} className="text-gold" />
               </div>
-              <h2 className="text-base font-semibold mb-2" style={{ color: "#F5F5F5" }}>
+              <h2 className="text-base font-semibold mb-2 text-text-primary">
                 Inicia una conversación
               </h2>
-              <p className="text-sm max-w-xs" style={{ color: "#888888" }}>
+              <p className="text-sm max-w-xs text-text-secondary">
                 Pregunta sobre procedimientos, manuales o preguntas frecuentes.
               </p>
             </div>
@@ -422,10 +412,7 @@ export default function ChatPage() {
             {/* User bubble — skip for escalation form placeholder messages */}
             {msg.user_message && !msg.isEscalationForm && (
               <div className="flex justify-end">
-                <div
-                  className="max-w-2xl rounded-2xl rounded-br-none px-4 py-3 border"
-                  style={{ backgroundColor: "#2A2000", borderColor: "rgba(201,168,76,0.25)", color: "#F5F5F5" }}
-                >
+                <div className="max-w-2xl rounded-2xl rounded-br-none px-4 py-3 border bg-gold-dark border-gold/25 text-text-primary">
                   <p className="text-sm">{msg.user_message}</p>
                 </div>
               </div>
@@ -434,22 +421,22 @@ export default function ChatPage() {
             {/* Bot bubble */}
             <div className="flex justify-start">
               <div
-                className="max-w-2xl rounded-2xl rounded-bl-none p-4 border"
-                style={{
-                  backgroundColor: msg.isRateLimit ? "rgba(201,168,76,0.06)" : "#1A1A1A",
-                  borderColor: msg.isRateLimit ? "rgba(201,168,76,0.2)" : "#2A2A2A",
-                }}
+                className={`max-w-2xl rounded-2xl rounded-bl-none p-4 border ${
+                  msg.isRateLimit
+                    ? "bg-gold/6 border-gold/20"
+                    : "bg-card border-border"
+                }`}
               >
                 {msg.isLoading ? (
                   <div className="flex items-center gap-1.5">
                     {[0, 150, 300].map((d) => (
                       <span
                         key={d}
-                        className="w-1.5 h-1.5 rounded-full animate-bounce"
-                        style={{ backgroundColor: "#555555", animationDelay: `${d}ms` }}
+                        className="w-1.5 h-1.5 rounded-full animate-bounce bg-muted"
+                        style={{ animationDelay: `${d}ms` }}
                       />
                     ))}
-                    <span className="text-xs ml-1" style={{ color: "#888888" }}>
+                    <span className="text-xs ml-1 text-text-secondary">
                       {msg.isEscalationForm ? "Analizando tu consulta..." : "Procesando..."}
                     </span>
                   </div>
@@ -463,10 +450,7 @@ export default function ChatPage() {
                   />
                 ) : (
                   <>
-                    <p
-                      className="text-sm leading-relaxed whitespace-pre-wrap"
-                      style={{ color: msg.isRateLimit ? "#C9A84C" : "#F5F5F5" }}
-                    >
+                    <p className={`text-sm leading-relaxed whitespace-pre-wrap ${msg.isRateLimit ? "text-gold" : "text-text-primary"}`}>
                       {msg.bot_message}
                     </p>
 
@@ -509,10 +493,7 @@ export default function ChatPage() {
 
         {error && (
           <div className="flex justify-center">
-            <div
-              className="px-4 py-3 rounded-lg border text-sm"
-              style={{ backgroundColor: "rgba(229,62,62,0.08)", borderColor: "rgba(229,62,62,0.3)", color: "#E53E3E" }}
-            >
+            <div className="px-4 py-3 rounded-lg border text-sm bg-error/8 border-error/30 text-error">
               {error}
             </div>
           </div>
@@ -522,10 +503,7 @@ export default function ChatPage() {
       </div>
 
       {/* Input */}
-      <div
-        className="border-t px-6 py-4 shrink-0"
-        style={{ borderColor: "#2A2A2A", backgroundColor: "#111111" }}
-      >
+      <div className="border-t px-6 py-4 shrink-0 border-border bg-surface">
         <form onSubmit={handleSubmit} className="flex gap-3">
           <input
             type="text"
@@ -536,7 +514,7 @@ export default function ChatPage() {
             className="input flex-1"
           />
           <button type="submit" disabled={loading || !input.trim()} className="btn btn-primary gap-2">
-            <Send size={14} strokeWidth={2} />
+            <Send size={14} strokeWidth={1.5} />
             {loading ? "..." : "Enviar"}
           </button>
         </form>

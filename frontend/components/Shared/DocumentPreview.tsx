@@ -78,15 +78,11 @@ export default function DocumentPreview({
   return (
     <>
       {/* Card */}
-      <div
-        className="flex items-center justify-between rounded-lg border px-3 py-2.5 mt-2"
-        style={{ backgroundColor: "#111111", borderColor: "#2A2A2A" }}
-      >
+      <div className="flex items-center justify-between rounded-lg border px-3 py-2.5 mt-2 bg-surface border-border">
         <div className="flex items-center gap-2 min-w-0">
-          <FileText size={14} strokeWidth={1.75} style={{ color: "#C9A84C", flexShrink: 0 }} />
+          <FileText size={14} strokeWidth={1.5} className="text-gold shrink-0" />
           <span
-            className="text-xs font-medium truncate max-w-[200px]"
-            style={{ color: "#F5F5F5" }}
+            className="text-xs font-medium truncate max-w-[200px] text-text-primary"
             title={document_name}
           >
             {document_name}
@@ -95,40 +91,26 @@ export default function DocumentPreview({
 
         <div className="flex items-center gap-1.5 ml-3 shrink-0">
           {error && (
-            <span className="text-xs" style={{ color: "#E53E3E" }} title={error}>
-              <AlertCircle size={13} strokeWidth={2} />
+            <span className="text-xs text-error" title={error}>
+              <AlertCircle size={13} strokeWidth={1.5} />
             </span>
           )}
 
           <button
             onClick={openPreview}
             disabled={loading}
-            className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors"
-            style={{
-              backgroundColor: "rgba(201,168,76,0.1)",
-              borderColor: "rgba(201,168,76,0.3)",
-              border: "1px solid",
-              color: loading ? "#888888" : "#C9A84C",
-            }}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors border bg-gold/10 border-gold/30 ${loading ? "text-text-secondary" : "text-gold"}`}
           >
-            <Eye size={12} strokeWidth={2} />
+            <Eye size={12} strokeWidth={1.5} />
             {loading ? "..." : "Ver"}
           </button>
 
           {canDownload && (
             <button
               onClick={handleDownload}
-              className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors"
-              style={{
-                backgroundColor: "transparent",
-                borderColor: "#2A2A2A",
-                border: "1px solid",
-                color: "#888888",
-              }}
-              onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#F5F5F5")}
-              onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#888888")}
+              className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors border border-border text-text-secondary hover:text-text-primary"
             >
-              <Download size={12} strokeWidth={2} />
+              <Download size={12} strokeWidth={1.5} />
               Descargar
             </button>
           )}
@@ -138,38 +120,29 @@ export default function DocumentPreview({
       {/* Modal */}
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: "rgba(0,0,0,0.85)" }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85"
           onClick={(e) => e.target === e.currentTarget && closeModal()}
         >
           <div
-            className="flex flex-col rounded-2xl border overflow-hidden"
+            className="flex flex-col rounded-2xl border overflow-hidden bg-card border-border"
             style={{
               width: "min(90vw, 1000px)",
               height: "85vh",
-              backgroundColor: "#1A1A1A",
-              borderColor: "#2A2A2A",
             }}
           >
             {/* Modal header */}
-            <div
-              className="flex items-center justify-between px-5 py-3 border-b shrink-0"
-              style={{ backgroundColor: "#111111", borderColor: "#2A2A2A" }}
-            >
+            <div className="flex items-center justify-between px-5 py-3 border-b shrink-0 bg-surface border-border">
               <div className="flex items-center gap-2 min-w-0">
-                <FileText size={15} strokeWidth={1.75} style={{ color: "#C9A84C" }} />
-                <span className="text-sm font-medium truncate" style={{ color: "#F5F5F5" }}>
+                <FileText size={15} strokeWidth={1.5} className="text-gold" />
+                <span className="text-sm font-medium truncate text-text-primary">
                   {document_name}
                 </span>
               </div>
               <button
                 onClick={closeModal}
-                className="shrink-0 p-1.5 rounded-lg transition-colors ml-4"
-                style={{ color: "#888888" }}
-                onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#F5F5F5")}
-                onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#888888")}
+                className="shrink-0 p-1.5 rounded-lg transition-colors ml-4 text-text-secondary hover:text-text-primary"
               >
-                <X size={16} strokeWidth={1.75} />
+                <X size={16} strokeWidth={1.5} />
               </button>
             </div>
 
@@ -191,14 +164,14 @@ export default function DocumentPreview({
 
               {error && !pdfUrl && (
                 <div className="flex flex-col items-center justify-center h-full gap-3 p-8 text-center">
-                  <AlertCircle size={32} strokeWidth={1.5} style={{ color: "#888888" }} />
-                  <p className="text-sm" style={{ color: "#888888" }}>
+                  <AlertCircle size={32} strokeWidth={1.5} className="text-text-secondary" />
+                  <p className="text-sm text-text-secondary">
                     Tu navegador no soporta previsualización.
                     <br />
                     Contacta con tu administrador para acceder al documento.
                   </p>
                   {error && (
-                    <p className="text-xs" style={{ color: "#555555" }}>
+                    <p className="text-xs text-muted">
                       {error}
                     </p>
                   )}

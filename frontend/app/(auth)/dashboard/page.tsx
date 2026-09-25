@@ -63,19 +63,19 @@ const MetricCard = ({ icon: Icon, title, value, subtitle }: MetricCardProps) => 
   <div className="card card-padding">
     <div className="flex items-start justify-between">
       <div>
-        <p className="text-xs font-medium uppercase tracking-widest" style={{ color: "#888888" }}>
+        <p className="text-xs font-medium uppercase tracking-widest text-text-secondary">
           {title}
         </p>
-        <p className="text-3xl font-bold mt-2" style={{ color: "#F5F5F5" }}>
+        <p className="text-3xl font-bold mt-2 text-text-primary">
           {value}
         </p>
         {subtitle && (
-          <p className="text-xs mt-1" style={{ color: "#555555" }}>
+          <p className="text-xs mt-1 text-muted">
             {subtitle}
           </p>
         )}
       </div>
-      <Icon size={18} strokeWidth={1.5} style={{ color: "#C9A84C" }} />
+      <Icon size={18} strokeWidth={1.5} className="text-gold" />
     </div>
   </div>
 );
@@ -91,15 +91,12 @@ const ServiceStatus = ({
 }) => {
   const isHealthy = status === "healthy";
   return (
-    <div
-      className="flex items-center justify-between p-3 rounded-lg border"
-      style={{ backgroundColor: "#111111", borderColor: "#2A2A2A" }}
-    >
+    <div className="flex items-center justify-between p-3 rounded-lg border bg-surface border-border">
       <div>
-        <p className="text-sm font-medium" style={{ color: "#F5F5F5" }}>
+        <p className="text-sm font-medium text-text-primary">
           {service}
         </p>
-        <p className="text-xs mt-0.5" style={{ color: "#555555" }}>
+        <p className="text-xs mt-0.5 text-muted">
           {message}
         </p>
       </div>
@@ -157,11 +154,11 @@ export default function DashboardPage() {
     <div className="space-y-8">
       {/* Welcome */}
       <div className="animate-slideUp">
-        <h1 className="text-3xl font-bold tracking-tight" style={{ color: "#F5F5F5" }}>
+        <h1 className="text-3xl font-bold tracking-tight text-text-primary">
           Bienvenido, {user?.email?.split("@")[0]}
         </h1>
         <div className="flex items-center gap-3 mt-2 flex-wrap">
-          <p className="text-sm" style={{ color: "#888888" }}>
+          <p className="text-sm text-text-secondary">
             {company?.name} · Operational Knowledge Assistant
           </p>
           {isSuperAdmin && <span className="badge-primary">Super Admin</span>}
@@ -173,30 +170,20 @@ export default function DashboardPage() {
       {isSuperAdmin && (
         <>
           {error && (
-            <div
-              className="px-4 py-3 rounded-lg border text-sm"
-              style={{
-                backgroundColor: "rgba(229,62,62,0.08)",
-                borderColor: "rgba(229,62,62,0.3)",
-                color: "#E53E3E",
-              }}
-            >
+            <div className="px-4 py-3 rounded-lg border text-sm bg-error/8 border-error/30 text-error">
               Error cargando analytics: {error}
             </div>
           )}
 
           {loading ? (
             <div className="space-y-4">
-              <div className="h-28 rounded-xl animate-pulse" style={{ backgroundColor: "#1A1A1A" }} />
-              <div className="h-28 rounded-xl animate-pulse" style={{ backgroundColor: "#1A1A1A" }} />
+              <div className="h-28 rounded-xl animate-pulse bg-card" />
+              <div className="h-28 rounded-xl animate-pulse bg-card" />
             </div>
           ) : stats ? (
             <>
               <section>
-                <h2
-                  className="text-xs font-semibold uppercase tracking-widest mb-4"
-                  style={{ color: "#555555" }}
-                >
+                <h2 className="text-xs font-semibold uppercase tracking-widest mb-4 text-muted">
                   Knowledge Base
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -228,10 +215,7 @@ export default function DashboardPage() {
               </section>
 
               <section>
-                <h2
-                  className="text-xs font-semibold uppercase tracking-widest mb-4"
-                  style={{ color: "#555555" }}
-                >
+                <h2 className="text-xs font-semibold uppercase tracking-widest mb-4 text-muted">
                   Chat Analytics (hoy)
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -257,10 +241,7 @@ export default function DashboardPage() {
               </section>
 
               <section>
-                <h2
-                  className="text-xs font-semibold uppercase tracking-widest mb-4"
-                  style={{ color: "#555555" }}
-                >
+                <h2 className="text-xs font-semibold uppercase tracking-widest mb-4 text-muted">
                   System Services
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -270,7 +251,7 @@ export default function DashboardPage() {
                 </div>
               </section>
 
-              <p className="text-xs text-center" style={{ color: "#555555" }}>
+              <p className="text-xs text-center text-muted">
                 Última actualización: {new Date(stats.timestamp).toLocaleTimeString()}
               </p>
             </>
@@ -281,7 +262,7 @@ export default function DashboardPage() {
       {/* Mis consultas escaladas — solo user con tickets */}
       {isUser && myTickets.length > 0 && (
         <section>
-          <h2 className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: "#555555" }}>
+          <h2 className="text-xs font-semibold uppercase tracking-widest mb-4 text-muted">
             Mis consultas escaladas
           </h2>
           <div className="space-y-3">
@@ -291,35 +272,31 @@ export default function DashboardPage() {
               return (
                 <div
                   key={ticket.id}
-                  className="card card-padding space-y-2"
-                  style={isResolved ? { borderColor: "rgba(56,161,105,0.3)" } : {}}
+                  className={`card card-padding space-y-2 ${isResolved ? "border-success/30" : ""}`}
                 >
                   <div className="flex items-start gap-3">
                     <div className="shrink-0 mt-0.5">
                       {isResolved ? (
-                        <CircleCheck size={15} strokeWidth={1.75} style={{ color: "#38A169" }} />
+                        <CircleCheck size={15} strokeWidth={1.5} className="text-success" />
                       ) : isPending ? (
-                        <AlertCircle size={15} strokeWidth={1.75} style={{ color: "#C9A84C" }} />
+                        <AlertCircle size={15} strokeWidth={1.5} className="text-gold" />
                       ) : (
-                        <Clock size={15} strokeWidth={1.75} style={{ color: "#888888" }} />
+                        <Clock size={15} strokeWidth={1.5} className="text-text-secondary" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium" style={{ color: "#F5F5F5" }}>
+                      <p className="text-sm font-medium text-text-primary">
                         {ticket.question}
                       </p>
-                      <p className="text-xs mt-0.5" style={{ color: "#555555" }}>
+                      <p className="text-xs mt-0.5 text-muted">
                         {isResolved ? "Resuelto" : isPending ? "Pendiente" : "En revisión"} ·{" "}
                         {new Date(ticket.created_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
                   {isResolved && ticket.resolution_message && (
-                    <div
-                      className="rounded-lg border px-3 py-2"
-                      style={{ backgroundColor: "rgba(56,161,105,0.06)", borderColor: "rgba(56,161,105,0.2)" }}
-                    >
-                      <p className="text-xs font-semibold mb-1" style={{ color: "#38A169" }}>
+                    <div className="rounded-lg border px-3 py-2 bg-success/6 border-success/20">
+                      <p className="text-xs font-semibold mb-1 text-success">
                         Respuesta del equipo
                       </p>
                       <div
@@ -337,87 +314,63 @@ export default function DashboardPage() {
 
       {/* Quick Actions */}
       <section>
-        <h2
-          className="text-xs font-semibold uppercase tracking-widest mb-4"
-          style={{ color: "#555555" }}
-        >
+        <h2 className="text-xs font-semibold uppercase tracking-widest mb-4 text-muted">
           Quick Actions
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Link
             href="/chat"
-            className="group card card-padding flex items-center justify-between transition-all duration-200"
-            style={{ borderColor: "#2A2A2A" }}
-            onMouseEnter={(e) =>
-              ((e.currentTarget as HTMLAnchorElement).style.borderColor = "#C9A84C")
-            }
-            onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLAnchorElement).style.borderColor = "#2A2A2A")
-            }
+            className="group card card-padding flex items-center justify-between transition-all duration-200 hover:border-gold"
           >
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <MessageSquare size={15} strokeWidth={1.5} style={{ color: "#C9A84C" }} />
-                <h3 className="font-semibold text-sm" style={{ color: "#F5F5F5" }}>
+                <MessageSquare size={15} strokeWidth={1.5} className="text-gold" />
+                <h3 className="font-semibold text-sm text-text-primary">
                   Iniciar Chat
                 </h3>
               </div>
-              <p className="text-xs" style={{ color: "#888888" }}>
+              <p className="text-xs text-text-secondary">
                 Consulta sobre tu base de conocimiento
               </p>
             </div>
-            <ArrowRight size={15} strokeWidth={1.5} style={{ color: "#555555" }} />
+            <ArrowRight size={15} strokeWidth={1.5} className="text-muted" />
           </Link>
 
           <Link
             href="/faq"
-            className="group card card-padding flex items-center justify-between transition-all duration-200"
-            style={{ borderColor: "#2A2A2A" }}
-            onMouseEnter={(e) =>
-              ((e.currentTarget as HTMLAnchorElement).style.borderColor = "#C9A84C")
-            }
-            onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLAnchorElement).style.borderColor = "#2A2A2A")
-            }
+            className="group card card-padding flex items-center justify-between transition-all duration-200 hover:border-gold"
           >
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <BookOpen size={15} strokeWidth={1.5} style={{ color: "#C9A84C" }} />
-                <h3 className="font-semibold text-sm" style={{ color: "#F5F5F5" }}>
+                <BookOpen size={15} strokeWidth={1.5} className="text-gold" />
+                <h3 className="font-semibold text-sm text-text-primary">
                   Ver FAQs
                 </h3>
               </div>
-              <p className="text-xs" style={{ color: "#888888" }}>
+              <p className="text-xs text-text-secondary">
                 Explora la base de conocimiento
               </p>
             </div>
-            <ArrowRight size={15} strokeWidth={1.5} style={{ color: "#555555" }} />
+            <ArrowRight size={15} strokeWidth={1.5} className="text-muted" />
           </Link>
 
           {isAdmin && (
             <Link
               href="/documents"
-              className="group card card-padding flex items-center justify-between transition-all duration-200"
-              style={{ borderColor: "#2A2A2A" }}
-              onMouseEnter={(e) =>
-                ((e.currentTarget as HTMLAnchorElement).style.borderColor = "#C9A84C")
-              }
-              onMouseLeave={(e) =>
-                ((e.currentTarget as HTMLAnchorElement).style.borderColor = "#2A2A2A")
-              }
+              className="group card card-padding flex items-center justify-between transition-all duration-200 hover:border-gold"
             >
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <FileText size={15} strokeWidth={1.5} style={{ color: "#C9A84C" }} />
-                  <h3 className="font-semibold text-sm" style={{ color: "#F5F5F5" }}>
+                  <FileText size={15} strokeWidth={1.5} className="text-gold" />
+                  <h3 className="font-semibold text-sm text-text-primary">
                     Subir Documentos
                   </h3>
                 </div>
-                <p className="text-xs" style={{ color: "#888888" }}>
+                <p className="text-xs text-text-secondary">
                   Gestiona la base de conocimiento
                 </p>
               </div>
-              <ArrowRight size={15} strokeWidth={1.5} style={{ color: "#555555" }} />
+              <ArrowRight size={15} strokeWidth={1.5} className="text-muted" />
             </Link>
           )}
         </div>

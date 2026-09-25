@@ -38,20 +38,13 @@ export default function RegisterForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div
-          className="px-4 py-3 rounded-lg text-sm border"
-          style={{
-            backgroundColor: "rgba(229,62,62,0.08)",
-            borderColor: "rgba(229,62,62,0.3)",
-            color: "#E53E3E",
-          }}
-        >
+        <div className="px-4 py-3 rounded-lg text-sm border bg-error/8 border-error/30 text-error">
           {error}
         </div>
       )}
 
       <div>
-        <label className="block text-xs font-medium mb-1.5" style={{ color: "#888888" }}>
+        <label className="block text-xs font-medium mb-1.5 text-text-secondary">
           Company Name
         </label>
         <input
@@ -66,7 +59,7 @@ export default function RegisterForm() {
       </div>
 
       <div>
-        <label className="block text-xs font-medium mb-1.5" style={{ color: "#888888" }}>
+        <label className="block text-xs font-medium mb-1.5 text-text-secondary">
           Email
         </label>
         <input
@@ -81,7 +74,7 @@ export default function RegisterForm() {
       </div>
 
       <div>
-        <label className="block text-xs font-medium mb-1.5" style={{ color: "#888888" }}>
+        <label className="block text-xs font-medium mb-1.5 text-text-secondary">
           Password
         </label>
         <input
@@ -94,11 +87,11 @@ export default function RegisterForm() {
           placeholder="••••••••"
           disabled={loading}
         />
-        <p className="text-xs mt-1" style={{ color: "#555555" }}>Minimum 8 characters</p>
+        <p className="text-xs mt-1 text-muted">Minimum 8 characters</p>
       </div>
 
       <div>
-        <label className="block text-xs font-medium mb-1.5" style={{ color: "#888888" }}>
+        <label className="block text-xs font-medium mb-1.5 text-text-secondary">
           Confirm Password
         </label>
         <input

@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={inter.variable}>
-      <body style={{ backgroundColor: "#0A0A0A", color: "#F5F5F5" }}>
+      <body className="bg-bg text-text-primary">
         <AuthProvider>
           <ErrorBoundary>{children}</ErrorBoundary>
         </AuthProvider>

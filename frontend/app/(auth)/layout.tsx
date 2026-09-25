@@ -18,7 +18,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#0A0A0A" }}>
+      <div className="min-h-screen flex items-center justify-center bg-bg">
         <LoadingSpinner />
       </div>
     );
@@ -26,10 +26,10 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
 
   if (user?.status === "pending") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center" style={{ backgroundColor: "#0A0A0A" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center bg-bg">
         <div className="card card-padding max-w-md rounded-2xl">
-          <h1 className="text-2xl font-bold mb-3" style={{ color: "#F5F5F5" }}>Cuenta pendiente</h1>
-          <p className="text-sm leading-relaxed" style={{ color: "#888888" }}>
+          <h1 className="text-2xl font-bold mb-3 text-text-primary">Cuenta pendiente</h1>
+          <p className="text-sm leading-relaxed text-text-secondary">
             Tu cuenta está pendiente de aprobación por un administrador.
             En cuanto sea aprobada podrás acceder al dashboard.
           </p>
@@ -45,7 +45,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen" style={{ backgroundColor: "#0A0A0A" }}>
+      <div className="min-h-screen bg-bg">
         <Header />
         <div className="flex">
           <Sidebar />

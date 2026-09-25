@@ -64,12 +64,12 @@ export default function Sidebar() {
             relative flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium
             transition-all duration-150
             ${active
-              ? "bg-[#1A1A1A] text-[#C9A84C] border-l-[3px] border-[#C9A84C] pl-[13px]"
-              : "text-[#888888] hover:text-[#C9A84C] hover:bg-[#111111] border-l-[3px] border-transparent pl-[13px]"
+              ? "bg-card text-gold border-l-[3px] border-gold pl-[13px]"
+              : "text-text-secondary hover:text-gold hover:bg-surface border-l-[3px] border-transparent pl-[13px]"
             }
           `}
         >
-          <Icon size={16} strokeWidth={1.75} className={active ? "text-[#C9A84C]" : "text-[#555555]"} />
+          <Icon size={16} strokeWidth={1.5} className={active ? "text-gold" : "text-muted"} />
           {name}
         </Link>
       );
@@ -77,8 +77,8 @@ export default function Sidebar() {
 
   return (
     <aside
-      className="w-60 shrink-0 flex flex-col border-r"
-      style={{ backgroundColor: "#0A0A0A", borderColor: "#2A2A2A", minHeight: "calc(100vh - 57px)" }}
+      className="w-60 shrink-0 flex flex-col border-r bg-bg border-border"
+      style={{ minHeight: "calc(100vh - 57px)" }}
     >
       <nav className="flex flex-col gap-0.5 p-4 pt-6">
         {renderLinks(userNav)}
@@ -91,32 +91,29 @@ export default function Sidebar() {
               relative flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium
               transition-all duration-150
               ${pathname === "/my-tickets"
-                ? "bg-[#1A1A1A] text-[#C9A84C] border-l-[3px] border-[#C9A84C] pl-[13px]"
-                : "text-[#888888] hover:text-[#C9A84C] hover:bg-[#111111] border-l-[3px] border-transparent pl-[13px]"
+                ? "bg-card text-gold border-l-[3px] border-gold pl-[13px]"
+                : "text-text-secondary hover:text-gold hover:bg-surface border-l-[3px] border-transparent pl-[13px]"
               }
             `}
           >
-            <HelpCircle size={16} strokeWidth={1.75} className={pathname === "/my-tickets" ? "text-[#C9A84C]" : "text-[#555555]"} />
+            <HelpCircle size={16} strokeWidth={1.5} className={pathname === "/my-tickets" ? "text-gold" : "text-muted"} />
             Mis Consultas
             {hasPendingTickets && (
-              <span
-                className="ml-auto w-2 h-2 rounded-full shrink-0"
-                style={{ backgroundColor: "#C9A84C" }}
-              />
+              <span className="ml-auto w-2 h-2 rounded-full shrink-0 bg-gold" />
             )}
           </Link>
         )}
 
         {isAdmin && (
           <>
-            <div className="my-3 border-t" style={{ borderColor: "#2A2A2A" }} />
+            <div className="my-3 border-t border-border" />
             {renderLinks(adminNav)}
           </>
         )}
 
         {isSuperAdmin && (
           <>
-            <div className="my-3 border-t" style={{ borderColor: "#2A2A2A" }} />
+            <div className="my-3 border-t border-border" />
             {renderLinks(superAdminNav)}
           </>
         )}

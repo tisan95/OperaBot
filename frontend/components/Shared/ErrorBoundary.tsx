@@ -27,24 +27,19 @@ export default class ErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div
-          className="min-h-screen flex items-center justify-center px-4"
-          style={{ backgroundColor: "#0A0A0A" }}
-        >
-          <div
-            className="card card-padding max-w-md w-full text-center space-y-5"
-          >
-            <h2 className="text-xl font-bold" style={{ color: "#F5F5F5" }}>
+        <div className="min-h-screen flex items-center justify-center px-4 bg-bg">
+          <div className="card card-padding max-w-md w-full text-center space-y-5">
+            <h2 className="text-xl font-bold text-text-primary">
               Algo fue mal
             </h2>
-            <p className="text-sm" style={{ color: "#888888" }}>
+            <p className="text-sm text-text-secondary">
               Se produjo un error inesperado. Recarga la página para continuar.
             </p>
             <button
               onClick={() => window.location.reload()}
               className="btn btn-primary mx-auto"
             >
-              <RefreshCw size={14} strokeWidth={2} />
+              <RefreshCw size={14} strokeWidth={1.5} />
               Recargar página
             </button>
           </div>

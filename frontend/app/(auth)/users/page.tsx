@@ -95,10 +95,10 @@ export default function UsersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: "#F5F5F5" }}>
+          <h1 className="text-2xl font-bold tracking-tight text-text-primary">
             Gestión de Usuarios
           </h1>
-          <p className="text-sm mt-1" style={{ color: "#888888" }}>
+          <p className="text-sm mt-1 text-text-secondary">
             Aprueba, gestiona y elimina usuarios.
           </p>
         </div>
@@ -110,13 +110,12 @@ export default function UsersPage() {
       {/* Table */}
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
-          <thead style={{ borderBottom: "1px solid #2A2A2A" }}>
+          <thead className="border-b border-border">
             <tr>
               {["Email", "Rol", "Estado", "Acciones"].map((col) => (
                 <th
                   key={col}
-                  className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider"
-                  style={{ color: "#888888", backgroundColor: "#111111" }}
+                  className="px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-text-secondary bg-surface"
                 >
                   {col}
                 </th>
@@ -126,11 +125,7 @@ export default function UsersPage() {
           <tbody>
             {isLoading ? (
               <tr>
-                <td
-                  colSpan={4}
-                  className="px-6 py-6 text-center text-sm"
-                  style={{ color: "#888888" }}
-                >
+                <td colSpan={4} className="px-6 py-6 text-center text-sm text-text-secondary">
                   Cargando...
                 </td>
               </tr>
@@ -138,24 +133,16 @@ export default function UsersPage() {
               users.map((u: any) => (
                 <tr
                   key={u.id}
-                  style={{ borderBottom: "1px solid #2A2A2A", transition: "background 0.1s" }}
-                  onMouseEnter={(e) =>
-                    ((e.currentTarget as HTMLTableRowElement).style.backgroundColor = "#1E1E1E")
-                  }
-                  onMouseLeave={(e) =>
-                    ((e.currentTarget as HTMLTableRowElement).style.backgroundColor = "transparent")
-                  }
+                  className="border-b border-border transition-colors hover:bg-[#1E1E1E]"
                 >
-                  <td className="px-6 py-4" style={{ color: "#F5F5F5" }}>
+                  <td className="px-6 py-4 text-text-primary">
                     {u.email}
                   </td>
                   <td className="px-6 py-4">
                     <span className="badge-primary">{u.role}</span>
                   </td>
                   <td className="px-6 py-4">
-                    <span
-                      className={u.status === "active" ? "badge-success" : "badge-warning"}
-                    >
+                    <span className={u.status === "active" ? "badge-success" : "badge-warning"}>
                       {u.status || "pendiente"}
                     </span>
                   </td>
@@ -183,7 +170,7 @@ export default function UsersPage() {
                         className="btn btn-danger btn-sm px-2 py-1"
                         title="Eliminar usuario"
                       >
-                        <Trash2 size={13} strokeWidth={1.75} />
+                        <Trash2 size={13} strokeWidth={1.5} />
                       </button>
                     )}
                   </td>
@@ -196,36 +183,31 @@ export default function UsersPage() {
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: "rgba(0,0,0,0.7)" }}>
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50 bg-black/70"
+        >
           <div className="card card-padding w-full max-w-md rounded-2xl relative">
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
               className="absolute top-4 right-4 btn-ghost p-1"
             >
-              <X size={16} strokeWidth={1.75} />
+              <X size={16} strokeWidth={1.5} />
             </button>
 
-            <h2 className="text-base font-semibold mb-5" style={{ color: "#F5F5F5" }}>
+            <h2 className="text-base font-semibold mb-5 text-text-primary">
               Crear Nuevo Usuario
             </h2>
 
             {error && (
-              <div
-                className="px-4 py-3 rounded-lg border text-sm mb-4"
-                style={{
-                  backgroundColor: "rgba(229,62,62,0.08)",
-                  borderColor: "rgba(229,62,62,0.3)",
-                  color: "#E53E3E",
-                }}
-              >
+              <div className="px-4 py-3 rounded-lg border text-sm mb-4 bg-error/8 border-error/30 text-error">
                 {error}
               </div>
             )}
 
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: "#888888" }}>
+                <label className="block text-xs font-medium mb-1.5 text-text-secondary">
                   Email
                 </label>
                 <input
@@ -238,7 +220,7 @@ export default function UsersPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: "#888888" }}>
+                <label className="block text-xs font-medium mb-1.5 text-text-secondary">
                   Contraseña (mín 6 char)
                 </label>
                 <input
@@ -252,7 +234,7 @@ export default function UsersPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: "#888888" }}>
+                <label className="block text-xs font-medium mb-1.5 text-text-secondary">
                   Rol
                 </label>
                 <select

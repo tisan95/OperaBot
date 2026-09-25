@@ -7,15 +7,15 @@ import { sanitizeHtml } from "@/lib/sanitize";
 import { CircleCheck, Clock, AlertCircle } from "lucide-react";
 
 const statusConfig = {
-  open:        { label: "Pendiente",   icon: AlertCircle, color: "#C9A84C" },
-  in_progress: { label: "En revisión", icon: Clock,       color: "#888888" },
-  resolved:    { label: "Resuelto",    icon: CircleCheck, color: "#38A169" },
+  open:        { label: "Pendiente",   icon: AlertCircle, colorClass: "text-gold"           },
+  in_progress: { label: "En revisión", icon: Clock,       colorClass: "text-text-secondary" },
+  resolved:    { label: "Resuelto",    icon: CircleCheck, colorClass: "text-success"         },
 } as const;
 
-const priorityColors: Record<string, { bg: string; text: string; border: string }> = {
-  high:   { bg: "rgba(229,62,62,0.08)",  text: "#E53E3E", border: "rgba(229,62,62,0.25)" },
-  medium: { bg: "rgba(201,168,76,0.08)", text: "#C9A84C", border: "rgba(201,168,76,0.25)" },
-  low:    { bg: "rgba(56,161,105,0.08)", text: "#38A169", border: "rgba(56,161,105,0.25)" },
+const priorityClasses: Record<string, string> = {
+  high:   "bg-error/8 text-error border-error/25",
+  medium: "bg-gold/8 text-gold border-gold/25",
+  low:    "bg-success/8 text-success border-success/25",
 };
 
 export default function MyTicketsPage() {
@@ -33,23 +33,16 @@ export default function MyTicketsPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight" style={{ color: "#F5F5F5" }}>
+        <h1 className="text-2xl font-bold tracking-tight text-text-primary">
           Mis Consultas
         </h1>
-        <p className="text-sm mt-1" style={{ color: "#888888" }}>
+        <p className="text-sm mt-1 text-text-secondary">
           Seguimiento de las preguntas que han sido escaladas al equipo.
         </p>
       </div>
 
       {error && (
-        <div
-          className="px-4 py-3 rounded-lg border text-sm"
-          style={{
-            backgroundColor: "rgba(229,62,62,0.08)",
-            borderColor: "rgba(229,62,62,0.3)",
-            color: "#E53E3E",
-          }}
-        >
+        <div className="px-4 py-3 rounded-lg border text-sm bg-error/8 border-error/30 text-error">
           {error}
         </div>
       )}
@@ -57,14 +50,12 @@ export default function MyTicketsPage() {
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-20 rounded-xl animate-pulse" style={{ backgroundColor: "#1A1A1A" }} />
+            <div key={i} className="h-20 rounded-xl animate-pulse bg-card" />
           ))}
         </div>
       ) : tickets.length === 0 ? (
-        <div
-          className="card card-padding text-center"
-        >
-          <p className="text-sm" style={{ color: "#888888" }}>
+        <div className="card card-padding text-center">
+          <p className="text-sm text-text-secondary">
             No tienes consultas escaladas.
           </p>
         </div>
@@ -73,33 +64,29 @@ export default function MyTicketsPage() {
           {tickets.map((ticket) => {
             const cfg = statusConfig[ticket.status as keyof typeof statusConfig] ?? statusConfig.open;
             const Icon = cfg.icon;
-            const pColor = priorityColors[ticket.priority] ?? priorityColors["medium"];
+            const pClasses = priorityClasses[ticket.priority] ?? priorityClasses["medium"];
             const isResolved = ticket.status === "resolved";
 
             return (
               <div
                 key={ticket.id}
-                className="card card-padding space-y-3"
-                style={isResolved ? { borderColor: "rgba(56,161,105,0.3)" } : {}}
+                className={`card card-padding space-y-3 ${isResolved ? "border-success/30" : ""}`}
               >
                 {/* Title + meta */}
                 <div className="flex items-start gap-3">
-                  <Icon size={16} strokeWidth={1.75} style={{ color: cfg.color, marginTop: 2, flexShrink: 0 }} />
+                  <Icon size={16} strokeWidth={1.5} className={`${cfg.colorClass} mt-0.5 shrink-0`} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium" style={{ color: "#F5F5F5" }}>
+                    <p className="text-sm font-medium text-text-primary">
                       {ticket.question}
                     </p>
                     <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                      <span
-                        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border"
-                        style={{ backgroundColor: pColor.bg, color: pColor.text, borderColor: pColor.border }}
-                      >
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${pClasses}`}>
                         {ticket.priority}
                       </span>
-                      <span className="text-xs" style={{ color: cfg.color }}>
+                      <span className={`text-xs ${cfg.colorClass}`}>
                         {cfg.label}
                       </span>
-                      <span className="text-xs" style={{ color: "#555555" }}>
+                      <span className="text-xs text-muted">
                         {new Date(ticket.created_at).toLocaleDateString()}
                       </span>
                     </div>
@@ -108,14 +95,8 @@ export default function MyTicketsPage() {
 
                 {/* Resolution */}
                 {isResolved && ticket.resolution_message && (
-                  <div
-                    className="rounded-lg border px-3 py-3"
-                    style={{
-                      backgroundColor: "rgba(56,161,105,0.06)",
-                      borderColor: "rgba(56,161,105,0.2)",
-                    }}
-                  >
-                    <p className="text-xs font-semibold mb-1.5" style={{ color: "#38A169" }}>
+                  <div className="rounded-lg border px-3 py-3 bg-success/6 border-success/20">
+                    <p className="text-xs font-semibold mb-1.5 text-success">
                       Respuesta del equipo
                     </p>
                     <div

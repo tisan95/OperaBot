@@ -120,10 +120,10 @@ export default function FAQPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight" style={{ color: "#F5F5F5" }}>
+        <h1 className="text-2xl font-bold tracking-tight text-text-primary">
           FAQs
         </h1>
-        <p className="text-sm mt-1" style={{ color: "#888888" }}>
+        <p className="text-sm mt-1 text-text-secondary">
           Explora, añade y mantén el conocimiento operacional.
         </p>
       </div>
@@ -131,11 +131,8 @@ export default function FAQPage() {
       <div className={`grid gap-6 ${isAdmin ? "lg:grid-cols-[1.6fr_1fr]" : "grid-cols-1"}`}>
         {/* Table */}
         <div className="card overflow-hidden">
-          <div
-            className="flex items-center justify-between border-b px-6 py-4"
-            style={{ borderColor: "#2A2A2A" }}
-          >
-            <h2 className="text-sm font-semibold" style={{ color: "#F5F5F5" }}>
+          <div className="flex items-center justify-between border-b px-6 py-4 border-border">
+            <h2 className="text-sm font-semibold text-text-primary">
               Preguntas frecuentes
             </h2>
             <span className="badge-primary">{faqs.length}</span>
@@ -143,28 +140,27 @@ export default function FAQPage() {
 
           <div className="px-6 py-4">
             {loading ? (
-              <p className="text-sm" style={{ color: "#888888" }}>
+              <p className="text-sm text-text-secondary">
                 Cargando FAQs...
               </p>
             ) : error ? (
-              <p className="text-sm" style={{ color: "#E53E3E" }}>
+              <p className="text-sm text-error">
                 {error}
               </p>
             ) : faqs.length === 0 ? (
-              <p className="text-sm" style={{ color: "#888888" }}>
+              <p className="text-sm text-text-secondary">
                 No hay FAQs todavía.
               </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
-                    <tr style={{ borderBottom: "1px solid #2A2A2A" }}>
+                    <tr className="border-b border-border">
                       {["Pregunta", "Respuesta", "Categoría", ...(isAdmin ? ["Acciones"] : [])].map(
                         (col) => (
                           <th
                             key={col}
-                            className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider"
-                            style={{ color: "#888888", backgroundColor: "#111111" }}
+                            className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-text-secondary bg-surface"
                           >
                             {col}
                           </th>
@@ -176,15 +172,9 @@ export default function FAQPage() {
                     {faqs.map((faq) => (
                       <tr
                         key={faq.id}
-                        style={{ borderBottom: "1px solid #2A2A2A", transition: "background 0.1s" }}
-                        onMouseEnter={(e) =>
-                          ((e.currentTarget as HTMLTableRowElement).style.backgroundColor = "#222222")
-                        }
-                        onMouseLeave={(e) =>
-                          ((e.currentTarget as HTMLTableRowElement).style.backgroundColor = "transparent")
-                        }
+                        className="border-b border-border transition-colors hover:bg-hover-bg"
                       >
-                        <td className="px-4 py-3 align-top" style={{ color: "#F5F5F5" }}>
+                        <td className="px-4 py-3 align-top text-text-primary">
                           {faq.question}
                         </td>
                         <td className="px-4 py-3 align-top max-w-sm">
@@ -193,7 +183,7 @@ export default function FAQPage() {
                             dangerouslySetInnerHTML={{ __html: sanitizeHtml(faq.answer) }}
                           />
                         </td>
-                        <td className="px-4 py-3 align-top" style={{ color: "#888888" }}>
+                        <td className="px-4 py-3 align-top text-text-secondary">
                           {faq.category || "General"}
                         </td>
                         {isAdmin && (
@@ -202,14 +192,7 @@ export default function FAQPage() {
                               <button
                                 type="button"
                                 onClick={() => handleEditClick(faq)}
-                                className="text-xs font-medium transition-colors"
-                                style={{ color: "#C9A84C" }}
-                                onMouseEnter={(e) =>
-                                  ((e.currentTarget as HTMLButtonElement).style.color = "#E0B85C")
-                                }
-                                onMouseLeave={(e) =>
-                                  ((e.currentTarget as HTMLButtonElement).style.color = "#C9A84C")
-                                }
+                                className="text-xs font-medium transition-colors text-gold hover:text-gold-bright"
                               >
                                 Editar
                               </button>
@@ -217,8 +200,7 @@ export default function FAQPage() {
                                 type="button"
                                 onClick={() => handleDeleteClick(faq.id, faq.question)}
                                 disabled={deleting === faq.id}
-                                className="text-xs font-medium transition-colors disabled:opacity-50"
-                                style={{ color: "#E53E3E" }}
+                                className="text-xs font-medium transition-colors disabled:opacity-50 text-error"
                               >
                                 {deleting === faq.id ? "Borrando..." : "Eliminar"}
                               </button>
@@ -237,11 +219,8 @@ export default function FAQPage() {
         {/* Form — solo admin */}
         {isAdmin && (
           <div className="card h-fit">
-            <div
-              className="flex items-center justify-between border-b px-6 py-4"
-              style={{ borderColor: "#2A2A2A" }}
-            >
-              <h2 className="text-sm font-semibold" style={{ color: "#F5F5F5" }}>
+            <div className="flex items-center justify-between border-b px-6 py-4 border-border">
+              <h2 className="text-sm font-semibold text-text-primary">
                 {editingFaqId ? "Editar FAQ" : "Añadir FAQ"}
               </h2>
               {editingFaqId && (
@@ -255,8 +234,7 @@ export default function FAQPage() {
               <form className="space-y-4" onSubmit={handleSubmit}>
                 <div>
                   <label
-                    className="block text-xs font-medium mb-1.5"
-                    style={{ color: "#888888" }}
+                    className="block text-xs font-medium mb-1.5 text-text-secondary"
                     htmlFor="question"
                   >
                     Pregunta
@@ -272,8 +250,7 @@ export default function FAQPage() {
 
                 <div>
                   <label
-                    className="block text-xs font-medium mb-1.5"
-                    style={{ color: "#888888" }}
+                    className="block text-xs font-medium mb-1.5 text-text-secondary"
                     htmlFor="answer"
                   >
                     Respuesta
@@ -288,8 +265,7 @@ export default function FAQPage() {
 
                 <div>
                   <label
-                    className="block text-xs font-medium mb-1.5"
-                    style={{ color: "#888888" }}
+                    className="block text-xs font-medium mb-1.5 text-text-secondary"
                     htmlFor="category"
                   >
                     Categoría
@@ -304,7 +280,7 @@ export default function FAQPage() {
                 </div>
 
                 {error && (
-                  <p className="text-xs" style={{ color: "#E53E3E" }}>
+                  <p className="text-xs text-error">
                     {error}
                   </p>
                 )}

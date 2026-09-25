@@ -113,30 +113,25 @@ export default function DocumentsPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight" style={{ color: "#F5F5F5" }}>
+        <h1 className="text-2xl font-bold tracking-tight text-text-primary">
           Documentos
         </h1>
-        <p className="text-sm mt-1" style={{ color: "#888888" }}>
+        <p className="text-sm mt-1 text-text-secondary">
           Sube PDFs para vectorizarlos en la base de conocimiento.
         </p>
       </div>
 
       {/* Upload card */}
       <div className="card card-padding">
-        <h2 className="text-sm font-semibold mb-4" style={{ color: "#F5F5F5" }}>
+        <h2 className="text-sm font-semibold mb-4 text-text-primary">
           Subir Documento
         </h2>
 
         <form onSubmit={handleUpload} className="space-y-4">
           <label
-            className="group relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-10 cursor-pointer transition-colors"
-            style={{ borderColor: selectedFile ? "#C9A84C" : "#2A2A2A" }}
-            onMouseEnter={(e) =>
-              ((e.currentTarget as HTMLLabelElement).style.borderColor = "#C9A84C")
-            }
-            onMouseLeave={(e) =>
-              ((e.currentTarget as HTMLLabelElement).style.borderColor = selectedFile ? "#C9A84C" : "#2A2A2A")
-            }
+            className={`group relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-10 cursor-pointer transition-colors hover:border-gold ${
+              selectedFile ? "border-gold" : "border-border"
+            }`}
           >
             <input
               type="file"
@@ -147,12 +142,12 @@ export default function DocumentsPage() {
             <UploadCloud
               size={32}
               strokeWidth={1.5}
-              style={{ color: selectedFile ? "#C9A84C" : "#555555" }}
+              className={selectedFile ? "text-gold" : "text-muted"}
             />
-            <p className="text-sm font-medium mt-3" style={{ color: "#F5F5F5" }}>
+            <p className="text-sm font-medium mt-3 text-text-primary">
               {selectedFile ? selectedFile.name : "Selecciona un PDF"}
             </p>
-            <p className="text-xs mt-1" style={{ color: "#555555" }}>
+            <p className="text-xs mt-1 text-muted">
               Haz clic para buscar el archivo
             </p>
           </label>
@@ -167,14 +162,7 @@ export default function DocumentsPage() {
         </form>
 
         {error && (
-          <div
-            className="mt-4 px-4 py-3 rounded-lg border text-sm"
-            style={{
-              backgroundColor: "rgba(229,62,62,0.08)",
-              borderColor: "rgba(229,62,62,0.3)",
-              color: "#E53E3E",
-            }}
-          >
+          <div className="mt-4 px-4 py-3 rounded-lg border text-sm bg-error/8 border-error/30 text-error">
             <p className="font-semibold mb-1">Error</p>
             <p className="font-mono text-xs break-all">{error}</p>
           </div>
@@ -183,44 +171,34 @@ export default function DocumentsPage() {
 
       {/* Documents list */}
       <div className="card overflow-hidden">
-        <div
-          className="border-b px-6 py-4"
-          style={{ borderColor: "#2A2A2A" }}
-        >
-          <h2 className="text-sm font-semibold" style={{ color: "#F5F5F5" }}>
+        <div className="border-b px-6 py-4 border-border">
+          <h2 className="text-sm font-semibold text-text-primary">
             Documentos en el sistema
           </h2>
         </div>
 
         <div className="p-4 space-y-2">
           {loading ? (
-            <p className="text-sm px-2" style={{ color: "#888888" }}>
+            <p className="text-sm px-2 text-text-secondary">
               Cargando documentos...
             </p>
           ) : documents.length === 0 ? (
-            <p className="text-sm px-2 italic" style={{ color: "#555555" }}>
+            <p className="text-sm px-2 italic text-muted">
               No hay documentos aún.
             </p>
           ) : (
             documents.map((doc) => (
               <div
                 key={doc.id}
-                className="flex items-center justify-between px-4 py-3 rounded-lg border transition-colors"
-                style={{ borderColor: "#2A2A2A", backgroundColor: "#111111" }}
-                onMouseEnter={(e) =>
-                  ((e.currentTarget as HTMLDivElement).style.backgroundColor = "#161616")
-                }
-                onMouseLeave={(e) =>
-                  ((e.currentTarget as HTMLDivElement).style.backgroundColor = "#111111")
-                }
+                className="flex items-center justify-between px-4 py-3 rounded-lg border transition-colors bg-surface border-border hover:bg-[#161616]"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <FileText size={15} strokeWidth={1.5} style={{ color: "#C9A84C", flexShrink: 0 }} />
+                  <FileText size={15} strokeWidth={1.5} className="text-gold shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate" style={{ color: "#F5F5F5" }}>
+                    <p className="text-sm font-medium truncate text-text-primary">
                       {doc.filename}
                     </p>
-                    <p className="text-xs mt-0.5" style={{ color: "#555555" }}>
+                    <p className="text-xs mt-0.5 text-muted">
                       {doc.file_size ? `${(doc.file_size / 1024).toFixed(1)} KB` : ""}{" "}
                       {doc.vector_count ? `· ${doc.vector_count} vectores` : ""}
                     </p>
@@ -240,7 +218,7 @@ export default function DocumentsPage() {
                     {deleting === doc.id ? (
                       <span className="text-xs">...</span>
                     ) : (
-                      <Trash2 size={13} strokeWidth={1.75} />
+                      <Trash2 size={13} strokeWidth={1.5} />
                     )}
                   </button>
                 </div>
