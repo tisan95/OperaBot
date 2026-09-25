@@ -24,9 +24,9 @@ _NO_RAG_MOCK = {
 
 # ── Intent: instant responses (no LLM / no Qdrant) ───────────────────────────
 
-async def test_greeting_returns_instant_response(client, admin_auth):
+async def test_greeting_returns_instant_response(client, admin_auth, admin_session):
     r = await client.post("/chat/messages",
-        json={"message": "hola"},
+        json={"message": "hola", "session_id": admin_session},
         cookies=admin_auth["cookies"])
     assert r.status_code == 201
     data = r.json()
@@ -34,25 +34,25 @@ async def test_greeting_returns_instant_response(client, admin_auth):
     assert data["confidence"] == 1.0
 
 
-async def test_greeting_multiword(client, admin_auth):
+async def test_greeting_multiword(client, admin_auth, admin_session):
     r = await client.post("/chat/messages",
-        json={"message": "hola buenos días"},
+        json={"message": "hola buenos días", "session_id": admin_session},
         cookies=admin_auth["cookies"])
     assert r.status_code == 201
     assert r.json()["confidence"] == 1.0
 
 
-async def test_confirmation_returns_instant_response(client, admin_auth):
+async def test_confirmation_returns_instant_response(client, admin_auth, admin_session):
     r = await client.post("/chat/messages",
-        json={"message": "solucionado"},
+        json={"message": "solucionado", "session_id": admin_session},
         cookies=admin_auth["cookies"])
     assert r.status_code == 201
     assert r.json()["confidence"] == 1.0
 
 
-async def test_negation_returns_escalate_hint(client, admin_auth):
+async def test_negation_returns_escalate_hint(client, admin_auth, admin_session):
     r = await client.post("/chat/messages",
-        json={"message": "no me funciona"},
+        json={"message": "no me funciona", "session_id": admin_session},
         cookies=admin_auth["cookies"])
     assert r.status_code == 201
     data = r.json()
@@ -61,14 +61,14 @@ async def test_negation_returns_escalate_hint(client, admin_auth):
 
 # ── Intent: QUESTION with RAG mocked ─────────────────────────────────────────
 
-async def test_question_with_rag_results(client, admin_auth, monkeypatch):
+async def test_question_with_rag_results(client, admin_auth, admin_session, monkeypatch):
     async def mock_rag(message, company_id, recent_rag_count=0):
         return _RAG_MOCK
 
     monkeypatch.setattr("app.api.routes.chat.generate_answer_with_sources", mock_rag)
 
     r = await client.post("/chat/messages",
-        json={"message": "¿Cómo hago el proceso de alta?"},
+        json={"message": "¿Cómo hago el proceso de alta?", "session_id": admin_session},
         cookies=admin_auth["cookies"])
     assert r.status_code == 201
     data = r.json()
@@ -77,14 +77,14 @@ async def test_question_with_rag_results(client, admin_auth, monkeypatch):
     assert data["ui_hint"] == "resolution_prompt"
 
 
-async def test_question_without_rag_results(client, admin_auth, monkeypatch):
+async def test_question_without_rag_results(client, admin_auth, admin_session, monkeypatch):
     async def mock_no_rag(message, company_id, recent_rag_count=0):
         return _NO_RAG_MOCK
 
     monkeypatch.setattr("app.api.routes.chat.generate_answer_with_sources", mock_no_rag)
 
     r = await client.post("/chat/messages",
-        json={"message": "¿Qué es la termodinámica?"},
+        json={"message": "¿Qué es la termodinámica?", "session_id": admin_session},
         cookies=admin_auth["cookies"])
     assert r.status_code == 201
     data = r.json()
@@ -94,23 +94,33 @@ async def test_question_without_rag_results(client, admin_auth, monkeypatch):
 
 # ── Validation & auth ─────────────────────────────────────────────────────────
 
-async def test_empty_message_returns_400(client, admin_auth):
+async def test_empty_message_returns_400(client, admin_auth, admin_session):
     r = await client.post("/chat/messages",
-        json={"message": "   "},
+        json={"message": "   ", "session_id": admin_session},
         cookies=admin_auth["cookies"])
     assert r.status_code == 400
 
 
 async def test_unauthenticated_returns_401(client):
-    r = await client.post("/chat/messages", json={"message": "hola"})
+    # Auth check fires before session_id is validated
+    r = await client.post("/chat/messages",
+        json={"message": "hola", "session_id": 999})
     assert r.status_code == 401
+
+
+async def test_wrong_session_returns_404(client, admin_auth):
+    """Using a session_id that doesn't belong to the user returns 404."""
+    r = await client.post("/chat/messages",
+        json={"message": "hola", "session_id": 999999},
+        cookies=admin_auth["cookies"])
+    assert r.status_code == 404
 
 
 # ── History ───────────────────────────────────────────────────────────────────
 
-async def test_chat_history_returns_messages(client, admin_auth):
+async def test_chat_history_returns_messages(client, admin_auth, admin_session):
     await client.post("/chat/messages",
-        json={"message": "hola"},
+        json={"message": "hola", "session_id": admin_session},
         cookies=admin_auth["cookies"])
     r = await client.get("/chat/history", cookies=admin_auth["cookies"])
     assert r.status_code == 200

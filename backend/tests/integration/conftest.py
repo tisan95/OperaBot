@@ -3,7 +3,7 @@
 Each test gets:
 - A fresh ASGI client (function scope)
 - An auto-use DB cleanup after every test (delete all rows)
-- admin_auth / user_auth convenience fixtures
+- admin_auth / user_auth / admin_session convenience fixtures
 
 Note: httpx ASGITransport does NOT trigger the FastAPI lifespan, so tables must
 be created explicitly via the setup_tables fixture before requests are made.
@@ -27,17 +27,20 @@ BASE = "http://test"
 def setup_tables():
     """Create SQLite schema once per test session (before any async fixture)."""
     # Import all models so Base.metadata knows every table
-    import app.models.company    # noqa: F401
-    import app.models.user       # noqa: F401
-    import app.models.faq        # noqa: F401
-    import app.models.chat_message  # noqa: F401
-    import app.models.document   # noqa: F401
-    import app.models.ticket     # noqa: F401
+    import app.models.company         # noqa: F401
+    import app.models.user            # noqa: F401
+    import app.models.faq             # noqa: F401
+    import app.models.chat_session    # noqa: F401  ← must come before chat_message
+    import app.models.chat_message    # noqa: F401
+    import app.models.document        # noqa: F401
+    import app.models.ticket          # noqa: F401
 
     from app.db.database import engine, Base
 
     async def _create():
         async with engine.begin() as conn:
+            # Always rebuild the schema so new columns/tables are picked up.
+            await conn.run_sync(Base.metadata.drop_all)
             await conn.run_sync(Base.metadata.create_all)
 
     loop = asyncio.new_event_loop()
@@ -50,7 +53,7 @@ def setup_tables():
 
 @pytest_asyncio.fixture
 async def client(setup_tables):
-    """Per-test ASGI client. The app lifespan creates SQLite tables on startup."""
+    """Per-test ASGI client."""
     from app.main import app
     async with AsyncClient(transport=ASGITransport(app=app), base_url=BASE) as c:
         yield c
@@ -65,13 +68,14 @@ async def clean_db():
     from app.db.database import AsyncSessionLocal
     from app.models.ticket import Ticket, TicketNote
     from app.models.chat_message import ChatMessage
+    from app.models.chat_session import ChatSession
     from app.models.document import Document
     from app.models.faq import FAQ
     from app.models.user import User
     from app.models.company import Company
 
     async with AsyncSessionLocal() as session:
-        for model in [TicketNote, Ticket, Document, ChatMessage, FAQ, User, Company]:
+        for model in [TicketNote, Ticket, Document, ChatMessage, ChatSession, FAQ, User, Company]:
             try:
                 await session.execute(delete(model))
             except Exception:
@@ -126,3 +130,11 @@ async def user_auth(client, admin_auth):
     })
     assert r3.status_code == 200, f"User login failed: {r3.text}"
     return {"cookies": dict(r3.cookies), "data": r3.json()}
+
+
+@pytest_asyncio.fixture
+async def admin_session(client, admin_auth):
+    """Create a chat session for the admin user and return its id."""
+    r = await client.post("/chat/sessions", cookies=admin_auth["cookies"])
+    assert r.status_code == 201, f"Session create failed: {r.text}"
+    return r.json()["id"]

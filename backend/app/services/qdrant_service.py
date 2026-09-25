@@ -78,28 +78,29 @@ class QdrantService:
             logger.error(f"Failed to get embedding from Ollama: {e}")
             raise
 
-    async def search_knowledge(self, query: str, company_id: str, limit_per_collection: int = 3) -> Dict[str, List[Dict[str, Any]]]:
+    async def search_knowledge(self, query: str, company_id: str, limit_per_collection: int = 3):
         """Search across FAQs and documents for relevant knowledge.
 
-        Args:
-            query: Search query text
-            company_id: Company ID for filtering
-            limit_per_collection: Maximum results per collection
-
         Returns:
-            Dict with 'faqs' and 'documents' keys containing search results
+            Dict with 'faqs' and 'documents' keys on success.
+            None when the embedding pipeline fails (infrastructure error, not "no results").
+            Callers must check for None before treating empty results as "no knowledge found".
         """
         try:
             logger.info(f"[Qdrant] Starting knowledge search for query: '{query[:50]}...'")
-            
-            # Get embedding with timeout
+
+            # Get embedding — failure here is an infrastructure error, NOT "no results".
             try:
                 logger.info(f"[Qdrant] Requesting embedding from Ollama...")
                 query_vector = await self._get_embedding(query)
                 logger.info(f"[Qdrant] Embedding received: {len(query_vector)} dimensions")
             except Exception as e:
-                logger.error(f"[Qdrant] Embedding request failed: {type(e).__name__}: {e}")
-                return {"faqs": [], "documents": []}
+                logger.error(
+                    f"[Qdrant] INFRASTRUCTURE ERROR — embedding pipeline failed "
+                    f"(this is NOT the same as 'no results'): {type(e).__name__}: {e}",
+                    exc_info=True,
+                )
+                return None  # Distinct sentinel: pipeline down, not empty knowledge base
 
             results = {"faqs": [], "documents": []}
 
@@ -149,8 +150,12 @@ class QdrantService:
             return results
 
         except Exception as e:
-            logger.error(f"[Qdrant] Unexpected error in knowledge search: {type(e).__name__}: {e}", exc_info=True)
-            return {"faqs": [], "documents": []}
+            logger.error(
+                f"[Qdrant] INFRASTRUCTURE ERROR — unexpected failure in knowledge search: "
+                f"{type(e).__name__}: {e}",
+                exc_info=True,
+            )
+            return None  # Infrastructure error, not empty results
 
     async def store_document_chunks(self, document_id: int, company_id: str,
                             chunks: List[str], metadata: Dict[str, Any]) -> int:

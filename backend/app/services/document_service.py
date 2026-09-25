@@ -2,6 +2,7 @@
 
 import logging
 import os
+import re
 import tempfile
 from typing import List, Dict, Any
 from pathlib import Path
@@ -108,6 +109,19 @@ class DocumentService:
         dest.write_bytes(file_bytes)
         return dest
 
+    def _normalize_pdf_text(self, text: str) -> str:
+        """Fix PyPDF2 fragmented-layout artifact: 'word\\n \\nword' → 'word word'.
+
+        Column-layout or scanned PDFs often produce text where each word sits on
+        its own line separated by a space-newline pair. Collapsing those into
+        regular spaces produces coherent prose suitable for semantic embeddings.
+        """
+        # Collapse every newline + optional trailing whitespace into a single space
+        text = re.sub(r"\n[ \t]*", " ", text)
+        # Normalize multiple consecutive spaces
+        text = re.sub(r" {2,}", " ", text)
+        return text.strip()
+
     def _extract_text_from_bytes(self, file_bytes: bytes, filename: str = "document.pdf") -> str:
         """Extract text from PDF bytes using a temporary file."""
         tmp_path = None
@@ -117,14 +131,15 @@ class DocumentService:
                 tmp_path = tmp.name
 
             reader = PdfReader(tmp_path)
-            text = "\n".join(
+            raw = "\n".join(
                 page.extract_text() or "" for page in reader.pages
             ).strip()
 
-            if not text:
+            if not raw:
                 raise ValueError("No se pudo extraer texto del PDF")
 
-            logger.info(f"Extracted {len(text)} chars from {filename}")
+            text = self._normalize_pdf_text(raw)
+            logger.info(f"Extracted {len(raw)} chars → {len(text)} chars after normalization from {filename}")
             return text
 
         except Exception as e:

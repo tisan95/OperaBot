@@ -17,6 +17,7 @@ from app.api.routes.documents import router as documents_router
 from app.api.routes.users import router as users_router  # <--- Nuevo import
 from app.api.routes.tickets import router as tickets_router
 import app.models.faq
+import app.models.chat_session  # registers ChatSession before ChatMessage (FK dependency)
 import app.models.chat_message
 import app.models.document
 import app.models.user  # <--- Aseguramos que el modelo de usuario esté cargado

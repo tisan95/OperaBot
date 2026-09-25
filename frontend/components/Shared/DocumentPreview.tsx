@@ -61,7 +61,7 @@ export default function DocumentPreview({
     setLoading(true);
     setError(null);
     try {
-      const resp = await fetch(`${API_BASE}/api/documents/${document_id}/preview`, {
+      const resp = await fetch(`${API_BASE}/documents/${document_id}/preview`, {
         credentials: "include",
       });
       if (!resp.ok) {
@@ -80,7 +80,7 @@ export default function DocumentPreview({
 
   const handleDownload = async () => {
     try {
-      const resp = await fetch(`${API_BASE}/api/documents/${document_id}/download`, {
+      const resp = await fetch(`${API_BASE}/documents/${document_id}/download`, {
         credentials: "include",
       });
       if (!resp.ok) {

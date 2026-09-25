@@ -387,7 +387,24 @@ async def generate_answer_with_sources(
             knowledge = await qdrant_service.search_knowledge(message, company_id, limit_per_collection=3)
         except Exception as e:
             logger.error(f"[RAG] Qdrant error: {e}", exc_info=True)
-            knowledge = {"faqs": [], "documents": []}
+            knowledge = None
+
+        # None = infrastructure failure (embedding pipeline down), not "no results".
+        if knowledge is None:
+            logger.error(
+                "[RAG] INFRASTRUCTURE ERROR — embedding pipeline returned None. "
+                "Check Ollama/Qdrant logs. This is NOT a 'no results' case."
+            )
+            return {
+                "answer": (
+                    "El asistente no está disponible en este momento por un problema técnico. "
+                    "Puedes escalar tu consulta al equipo."
+                ),
+                "sources": [],
+                "confidence": 0.0,
+                "ui_hint": "escalate_prompt",
+                "cited_documents": [],
+            }
 
         knowledge = _filter_by_similarity(knowledge)
         total = len(knowledge.get("faqs", [])) + len(knowledge.get("documents", []))
