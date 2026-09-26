@@ -86,6 +86,18 @@ async def clean_db():
             await session.rollback()
 
 
+# ── Email stub — never hit a real SMTP/HTTP endpoint during tests ────────────
+
+@pytest_asyncio.fixture(autouse=True)
+async def _stub_email(monkeypatch):
+    """Email is best-effort and network-bound; tests must not depend on a
+    running MailHog. Individual tests can still monkeypatch the route-level
+    send_welcome_email/send_ticket_resolved_email imports to assert calls."""
+    async def _noop_send(*args, **kwargs):
+        return True
+    monkeypatch.setattr("app.services.email_service.send_email", _noop_send)
+
+
 # ── Auth helpers ──────────────────────────────────────────────────────────────
 
 def _uniq() -> str:

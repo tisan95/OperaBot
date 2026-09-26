@@ -1,5 +1,6 @@
 """API routes for user management (Admin only)."""
 
+import logging
 from typing import List
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -8,10 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from passlib.context import CryptContext
 
 from app.db.database import get_db
+from app.models.company import Company
 from app.models.user import User, UserRole, UserStatus
 from app.api.dependencies import get_current_user_id, get_current_company_id, require_super_admin
 from app.api.schemas.user import UserResponse, UserCreate, UserUpdate, UserApproveRequest
+from app.services.email_service import send_welcome_email
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/users", tags=["users"])
 # Configuramos el hash de contraseñas igual que en auth_service
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -81,6 +85,13 @@ async def approve_company_user(
 
     await db.commit()
     await db.refresh(user)
+
+    company = await db.get(Company, user.company_id)
+    try:
+        await send_welcome_email(user.email, company.name if company else "tu empresa")
+    except Exception as e:
+        logger.error(f"[users] Error enviando email de bienvenida a {user.email}: {e}")
+
     return user
 
 @router.patch("/{target_id}", response_model=UserResponse)

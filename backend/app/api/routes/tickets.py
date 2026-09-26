@@ -28,6 +28,7 @@ from app.api.schemas.ticket import (
 from app.db.database import get_db
 from app.models.ticket import Ticket, TicketNote
 from app.services import freescout_service
+from app.services.email_service import send_ticket_resolved_email
 from app.services.llm_client import generate_answer_with_sources, SIMILARITY_THRESHOLD
 
 logger = logging.getLogger(__name__)
@@ -269,6 +270,12 @@ async def update_ticket(
         )
         if synced:
             logger.info(f"[freescout] Resolución de ticket #{ticket.id} enviada a conversation #{ticket.freescout_conversation_id}")
+
+    if newly_resolved and ticket.resolution_message and ticket.user:
+        try:
+            await send_ticket_resolved_email(ticket.user.email, ticket.question)
+        except Exception as e:
+            logger.error(f"[tickets] Error enviando email de resolución para ticket #{ticket.id}: {e}")
 
     user_email = ticket.user.email if ticket.user else None
     return _ticket_to_response(ticket, user_email=user_email)

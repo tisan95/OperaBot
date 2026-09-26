@@ -51,6 +51,21 @@ class Settings(BaseSettings):
     FREESCOUT_WEBHOOK_SECRET: str = ""  # from FreeScout: Manage » API & Webhooks
     FREESCOUT_AGENT_USER_ID: int | None = None  # FreeScout user id used to post agent replies
 
+    # Frontend base URL — used to build links inside transactional emails
+    FRONTEND_URL: str = "http://localhost:3000"
+
+    # Email provider — same dispatcher pattern as LLM_PROVIDER
+    EMAIL_PROVIDER: str = "mailhog"  # mailhog (dev) | resend (production)
+
+    # MailHog (local SMTP capture, no auth, no real delivery)
+    MAILHOG_HOST: str = "localhost"
+    MAILHOG_PORT: int = 1025
+    EMAIL_FROM_ADDRESS: str = "OperaBot <noreply@operabot.local>"
+
+    # Resend (production) — inactive until EMAIL_PROVIDER=resend
+    RESEND_API_KEY: str = ""
+    RESEND_FROM_EMAIL: str = ""
+
     # Configuración de Pydantic v2
     model_config = SettingsConfigDict(
         env_file=".env",
