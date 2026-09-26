@@ -3,8 +3,11 @@
 import { apiFetch } from "@/lib/api";
 import { useAuthContext } from "@/components/Auth/AuthProvider";
 import DocumentPreview from "@/components/Shared/DocumentPreview";
+import SessionsDropdown, { ChatSession } from "@/components/Chat/SessionsDropdown";
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { Send, MessageSquare, CheckCircle, XCircle, ArrowUpCircle } from "lucide-react";
+import { Send, MessageSquare, CheckCircle, XCircle, ArrowUpCircle, Info } from "lucide-react";
+
+const MAX_ACTIVE_SESSIONS = 5;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -202,16 +205,99 @@ export default function ChatPage() {
   const [actionedIds, setActionedIds] = useState<Set<number>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { loadHistory(); }, []);
+  // ── Session state ──
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
+  const [initializing, setInitializing] = useState(true);
+  const [archiveNotice, setArchiveNotice] = useState<string | null>(null);
+
+  useEffect(() => { initSession(); }, []);
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const loadHistory = async () => {
+  const showArchiveNotice = () => {
+    setArchiveNotice("Se ha archivado tu conversación más antigua por límite de 5 activas.");
+    setTimeout(() => setArchiveNotice(null), 5000);
+  };
+
+  // ── Session lifecycle ──
+
+  const initSession = async () => {
+    setInitializing(true);
     try {
-      const data = await apiFetch("/chat/history?limit=50");
-      if (Array.isArray(data)) setMessages(data);
+      const list = await apiFetch("/chat/sessions");
+      const active: ChatSession[] = Array.isArray(list) ? list : [];
+      if (active.length > 0) {
+        setSessions(active);
+        await selectSession(active[0].id);
+      } else {
+        const created = await apiFetch("/chat/sessions", { method: "POST" });
+        setSessions([created]);
+        setActiveSessionId(created.id);
+        setMessages([]);
+      }
+    } catch (err: any) {
+      setError(err.message || "Error al iniciar el chat");
+    } finally {
+      setInitializing(false);
+    }
+  };
+
+  const selectSession = async (sessionId: number) => {
+    setActiveSessionId(sessionId);
+    setActionedIds(new Set());
+    setError(null);
+    try {
+      const msgs = await apiFetch(`/chat/sessions/${sessionId}/messages`);
+      setMessages(Array.isArray(msgs) ? msgs : []);
+    } catch (err: any) {
+      setMessages([]);
+      setError(err.message || "Error al cargar la conversación");
+    }
+  };
+
+  const refreshSessions = async () => {
+    try {
+      const list = await apiFetch("/chat/sessions");
+      if (Array.isArray(list)) setSessions(list);
     } catch { /* non-critical */ }
+  };
+
+  const handleNewSession = async () => {
+    const wasAtLimit = sessions.length >= MAX_ACTIVE_SESSIONS;
+    try {
+      const created = await apiFetch("/chat/sessions", { method: "POST" });
+      setActiveSessionId(created.id);
+      setMessages([]);
+      setActionedIds(new Set());
+      setError(null);
+      await refreshSessions();
+      if (wasAtLimit) showArchiveNotice();
+    } catch (err: any) {
+      setError(err.message || "Error al crear la conversación");
+    }
+  };
+
+  const handleDeleteSession = async (sessionId: number) => {
+    try {
+      await apiFetch(`/chat/sessions/${sessionId}`, { method: "DELETE" });
+      const list = await apiFetch("/chat/sessions");
+      const active: ChatSession[] = Array.isArray(list) ? list : [];
+      setSessions(active);
+      if (sessionId === activeSessionId) {
+        if (active.length > 0) {
+          await selectSession(active[0].id);
+        } else {
+          const created = await apiFetch("/chat/sessions", { method: "POST" });
+          setSessions([created]);
+          setActiveSessionId(created.id);
+          setMessages([]);
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || "Error al borrar la conversación");
+    }
   };
 
   const addMessage = (msg: ChatMessage) =>
@@ -231,7 +317,7 @@ export default function ChatPage() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const userMessage = input.trim();
-    if (!userMessage) return;
+    if (!userMessage || !activeSessionId) return;
 
     setError(null);
     setInput("");
@@ -250,7 +336,7 @@ export default function ChatPage() {
     try {
       const resp = await apiFetch("/chat/messages", {
         method: "POST",
-        body: JSON.stringify({ message: userMessage }),
+        body: JSON.stringify({ message: userMessage, session_id: activeSessionId }),
       });
       replaceMsg(tempId, {
         id: resp.id,
@@ -261,6 +347,7 @@ export default function ChatPage() {
         cited_documents: resp.cited_documents ?? [],
         isLoading: false,
       });
+      refreshSessions();
     } catch (err: any) {
       const isRateLimit = err?.status === 429;
       const msg = err instanceof Error ? err.message : "Error al enviar el mensaje";
@@ -378,17 +465,41 @@ export default function ChatPage() {
             Consulta sobre tu base de conocimiento operacional
           </p>
         </div>
-        {hasPendingPrompt && (
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-gold" />
-            <span className="text-xs text-gold">Valoración pendiente</span>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {hasPendingPrompt && (
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-gold" />
+              <span className="text-xs text-gold">Valoración pendiente</span>
+            </div>
+          )}
+          <SessionsDropdown
+            sessions={sessions}
+            activeSessionId={activeSessionId}
+            onOpen={refreshSessions}
+            onSelect={selectSession}
+            onNew={handleNewSession}
+            onDelete={handleDeleteSession}
+          />
+        </div>
       </div>
+
+      {/* Archive notice toast */}
+      {archiveNotice && (
+        <div className="px-6 pt-3 shrink-0">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg border text-xs bg-gold/8 border-gold/25 text-gold animate-fadeIn">
+            <Info size={13} strokeWidth={1.5} />
+            {archiveNotice}
+          </div>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
-        {messages.length === 0 && (
+        {initializing ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-sm text-text-secondary">Cargando conversación...</p>
+          </div>
+        ) : messages.length === 0 && (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4 border bg-card border-border">
@@ -507,10 +618,10 @@ export default function ChatPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Escribe tu pregunta..."
-            disabled={loading}
+            disabled={loading || initializing}
             className="input flex-1"
           />
-          <button type="submit" disabled={loading || !input.trim()} className="btn btn-primary gap-2">
+          <button type="submit" disabled={loading || initializing || !input.trim()} className="btn btn-primary gap-2">
             <Send size={14} strokeWidth={1.5} />
             {loading ? "..." : "Enviar"}
           </button>

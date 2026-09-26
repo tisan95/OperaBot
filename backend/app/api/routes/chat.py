@@ -22,6 +22,8 @@ from app.db.database import get_db
 from app.models.chat_message import ChatMessage
 from app.models.chat_session import ChatSession
 from app.models.ticket import Ticket, TicketPriority
+from app.models.user import User
+from app.services import freescout_service
 from app.services.llm_client import (
     classify_intent,
     generate_answer_with_sources,
@@ -353,6 +355,19 @@ async def escalate_chat(
     await db.refresh(ticket)
 
     logger.info(f"[chat] Ticket #{ticket.id} creado, user={user_id}")
+
+    if freescout_service.is_enabled():
+        user = await db.get(User, user_id)
+        if user:
+            fs_id = await freescout_service.create_conversation(
+                subject=ticket.question,
+                customer_email=user.email,
+                body_text=ticket.notes or ticket.question,
+            )
+            if fs_id:
+                ticket.freescout_conversation_id = fs_id
+                await db.commit()
+                logger.info(f"[freescout] Ticket #{ticket.id} → conversation #{fs_id}")
 
     return EscalateResponse(
         ticket_id=ticket.id,

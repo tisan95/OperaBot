@@ -47,6 +47,7 @@ export interface Ticket {
   updated_at: string;
   resolved_at?: string | null;
   user_email?: string | null;
+  freescout_conversation_id?: number | null;
 }
 
 export interface TicketNote {

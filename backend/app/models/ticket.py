@@ -42,6 +42,7 @@ class Ticket(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     resolved_at = Column(DateTime, nullable=True)
     archived_at = Column(DateTime, nullable=True)
+    freescout_conversation_id = Column(Integer, nullable=True)
 
     user = relationship("User", foreign_keys=[user_id])
     company = relationship("Company")

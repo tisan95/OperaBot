@@ -5,7 +5,9 @@ import { apiFetch } from "@/lib/api";
 import { Ticket, TicketNote } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { X, Plus } from "lucide-react";
+import { X, Plus, Link2 } from "lucide-react";
+
+const FREESCOUT_URL = process.env.NEXT_PUBLIC_FREESCOUT_URL;
 import RichEditor from "@/components/Shared/RichEditor";
 import EmptyState from "@/components/Shared/EmptyState";
 import { sanitizeHtml } from "@/lib/sanitize";
@@ -187,6 +189,24 @@ function TicketDetail({
               <span className="text-xs text-muted">
                 {new Date(ticket.created_at).toLocaleString()}
               </span>
+              {ticket.freescout_conversation_id && (
+                FREESCOUT_URL ? (
+                  <a
+                    href={`${FREESCOUT_URL}/conversation/${ticket.freescout_conversation_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border bg-gold/8 border-gold/25 text-gold hover:bg-gold/15"
+                  >
+                    <Link2 size={11} strokeWidth={1.5} />
+                    Ver en FreeScout
+                  </a>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border bg-gold/8 border-gold/25 text-gold">
+                    <Link2 size={11} strokeWidth={1.5} />
+                    Sincronizado (#{ticket.freescout_conversation_id})
+                  </span>
+                )
+              )}
             </div>
           </div>
           <button
@@ -202,6 +222,18 @@ function TicketDetail({
           {error && (
             <div className="px-4 py-3 rounded-lg border text-sm bg-error/8 border-error/30 text-error">
               {error}
+            </div>
+          )}
+
+          {/* Contexto de la consulta — conversación + respuestas del usuario al escalar */}
+          {ticket.notes && (
+            <div className="rounded-xl border p-4 bg-surface border-border">
+              <p className="text-xs font-semibold uppercase tracking-wider mb-2 text-text-secondary">
+                Contexto de la consulta
+              </p>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap text-text-primary">
+                {ticket.notes}
+              </p>
             </div>
           )}
 

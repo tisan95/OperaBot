@@ -42,6 +42,7 @@ class TicketResponse(BaseModel):
     resolved_at: Optional[datetime] = None
     archived_at: Optional[datetime] = None
     user_email: Optional[str] = None
+    freescout_conversation_id: Optional[int] = None
 
     class Config:
         from_attributes = True

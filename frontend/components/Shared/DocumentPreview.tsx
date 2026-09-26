@@ -79,6 +79,7 @@ export default function DocumentPreview({
   };
 
   const handleDownload = async () => {
+    setError(null);
     try {
       const resp = await fetch(`${API_BASE}/documents/${document_id}/download`, {
         credentials: "include",
@@ -104,41 +105,45 @@ export default function DocumentPreview({
   return (
     <>
       {/* Tarjeta inline */}
-      <div className="flex items-center justify-between rounded-lg border px-3 py-2.5 mt-2 bg-surface border-border">
-        <div className="flex items-center gap-2 min-w-0">
-          <FileText size={14} strokeWidth={1.5} className="text-gold shrink-0" />
-          <span
-            className="text-xs font-medium truncate max-w-[200px] text-text-primary"
-            title={document_name}
-          >
-            {document_name}
-          </span>
+      <div className="rounded-lg border mt-2 bg-surface border-border overflow-hidden">
+        <div className="flex items-center justify-between px-3 py-2.5">
+          <div className="flex items-center gap-2 min-w-0">
+            <FileText size={14} strokeWidth={1.5} className="text-gold shrink-0" />
+            <span
+              className="text-xs font-medium truncate max-w-[200px] text-text-primary"
+              title={document_name}
+            >
+              {document_name}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 ml-3 shrink-0">
+            <button
+              onClick={openPreview}
+              disabled={loading}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors border bg-gold/10 border-gold/30 ${loading ? "text-text-secondary" : "text-gold"}`}
+            >
+              <Eye size={12} strokeWidth={1.5} />
+              {loading ? "..." : "Ver"}
+            </button>
+            {canDownload && (
+              <button
+                onClick={handleDownload}
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors border border-border text-text-secondary hover:text-text-primary"
+              >
+                <Download size={12} strokeWidth={1.5} />
+                Descargar
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center gap-1.5 ml-3 shrink-0">
-          {error && (
-            <span className="text-xs text-error" title={error}>
-              <AlertCircle size={13} strokeWidth={1.5} />
-            </span>
-          )}
-          <button
-            onClick={openPreview}
-            disabled={loading}
-            className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors border bg-gold/10 border-gold/30 ${loading ? "text-text-secondary" : "text-gold"}`}
-          >
-            <Eye size={12} strokeWidth={1.5} />
-            {loading ? "..." : "Ver"}
-          </button>
-          {canDownload && (
-            <button
-              onClick={handleDownload}
-              className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors border border-border text-text-secondary hover:text-text-primary"
-            >
-              <Download size={12} strokeWidth={1.5} />
-              Descargar
-            </button>
-          )}
-        </div>
+        {error && (
+          <div className="flex items-start gap-1.5 px-3 py-2 border-t text-xs bg-error/8 border-error/20 text-error">
+            <AlertCircle size={13} strokeWidth={1.5} className="shrink-0 mt-0.5" />
+            <span>{error}</span>
+          </div>
+        )}
       </div>
 
       {/* Modal */}

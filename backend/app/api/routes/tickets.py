@@ -27,6 +27,7 @@ from app.api.schemas.ticket import (
 )
 from app.db.database import get_db
 from app.models.ticket import Ticket, TicketNote
+from app.services import freescout_service
 from app.services.llm_client import generate_answer_with_sources, SIMILARITY_THRESHOLD
 
 logger = logging.getLogger(__name__)
@@ -239,6 +240,8 @@ async def update_ticket(
     if not ticket:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found")
 
+    was_resolved = ticket.status == TicketStatus.RESOLVED
+
     if request.status is not None:
         ticket.status = request.status
     if request.priority is not None:
@@ -257,6 +260,15 @@ async def update_ticket(
     db.add(ticket)
     await db.commit()
     await db.refresh(ticket)
+
+    # Mirror the resolution to FreeScout as an agent reply on the linked conversation
+    newly_resolved = ticket.status == TicketStatus.RESOLVED and not was_resolved
+    if newly_resolved and ticket.freescout_conversation_id and ticket.resolution_message:
+        synced = await freescout_service.add_agent_reply(
+            ticket.freescout_conversation_id, ticket.resolution_message
+        )
+        if synced:
+            logger.info(f"[freescout] Resolución de ticket #{ticket.id} enviada a conversation #{ticket.freescout_conversation_id}")
 
     user_email = ticket.user.email if ticket.user else None
     return _ticket_to_response(ticket, user_email=user_email)

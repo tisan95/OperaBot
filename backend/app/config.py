@@ -42,6 +42,15 @@ class Settings(BaseSettings):
     # Legacy alias, kept for any existing .env files
     GEMINI_API_KEY: str | None = None
 
+    # FreeScout integration — off by default until the API & Webhooks module
+    # is installed on the customer's instance and credentials are supplied
+    FREESCOUT_ENABLED: bool = False
+    FREESCOUT_BASE_URL: str = ""       # e.g. https://support.miempresa.com
+    FREESCOUT_API_KEY: str = ""
+    FREESCOUT_MAILBOX_ID: int | None = None
+    FREESCOUT_WEBHOOK_SECRET: str = ""  # from FreeScout: Manage » API & Webhooks
+    FREESCOUT_AGENT_USER_ID: int | None = None  # FreeScout user id used to post agent replies
+
     # Configuración de Pydantic v2
     model_config = SettingsConfigDict(
         env_file=".env",
